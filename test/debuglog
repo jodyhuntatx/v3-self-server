@@ -1,0 +1,28 @@
+#!/bin/bash
+source ./cybrtest.config
+
+DATESTAMP=$(date +%Y-%m-%d)
+echo
+echo "CONJUR AUDIT LOG =================================="
+docker exec conjur1 tail -3 /var/log/conjur/audit.json | jq .
+echo
+echo "LOCALHOST_ACCESS_LOG.$DATESTAMP.LOG =================================="
+tail -10 $TOMCAT_HOME/logs/localhost_access_log.${DATESTAMP}.txt
+echo
+echo "CATALINA.$DATESTAMP.LOG =================================="
+tail -10 $TOMCAT_HOME/logs/catalina.$DATESTAMP.log
+echo
+exit
+
+echo "HOST_MANAGER.$DATESTAMP.LOG =================================="
+tail -10 $TOMCAT_HOME/logs/host-manager.${DATESTAMP}.log
+echo
+echo "MANAGER.$DATESTAMP.LOG =================================="
+tail -10 $TOMCAT_HOME/logs/manager.${DATESTAMP}.log
+echo
+echo "CATALINA.OUT =================================="
+tail -6 $TOMCAT_HOME/logs/catalina.out
+echo
+echo "LOCALHOST.$DATESTAMP.LOG =================================="
+tail -10 $TOMCAT_HOME/logs/localhost.$DATESTAMP.log
+

@@ -1,0 +1,80 @@
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                      http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+  version="4.0"
+  metadata-complete="true">
+
+  <servlet>
+    <servlet-name>PASServlet</servlet-name>
+    <servlet-class>PASServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>PASServlet</servlet-name>
+    <url-pattern>/paslogin</url-pattern>
+  </servlet-mapping>
+
+  <filter>  
+    <filter-name>PASFilter</filter-name>  
+    <filter-class>PASBasicAuthFilter</filter-class>  
+  </filter>  
+  <filter-mapping>  
+    <filter-name>PASFilter</filter-name>  
+    <url-pattern>/paslogin</url-pattern>  
+  </filter-mapping>  
+
+  <servlet>
+    <servlet-name>ConjurServlet</servlet-name>
+    <servlet-class>ConjurServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ConjurServlet</servlet-name>
+    <url-pattern>/conjurlogin</url-pattern>
+  </servlet-mapping>
+
+  <filter>
+    <filter-name>ConjurFilter</filter-name>
+    <filter-class>ConjurBasicAuthFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>ConjurFilter</filter-name>
+    <url-pattern>/conjurlogin</url-pattern>
+  </filter-mapping>
+
+  <servlet>
+    <servlet-name>SafeServlet</servlet-name>
+    <servlet-class>SafeServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>SafeServlet</servlet-name>
+    <url-pattern>/safes</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>AccountServlet</servlet-name>
+    <servlet-class>AccountServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>AccountServlet</servlet-name>
+    <url-pattern>/accounts</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>ConjurIdentitiesServlet</servlet-name>
+    <servlet-class>ConjurIdentitiesServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ConjurIdentitiesServlet</servlet-name>
+    <url-pattern>/conjuridentities</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>ConjurAccessGrantServlet</servlet-name>
+    <servlet-class>ConjurAccessGrantServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ConjurAccessGrantServlet</servlet-name>
+    <url-pattern>/accessgrants</url-pattern>
+  </servlet-mapping>
+
+</web-app>

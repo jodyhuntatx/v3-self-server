@@ -1,0 +1,63 @@
+#!/bin/bash
+
+source ./cybrtest.config
+
+export CURL="curl -s"
+export BASE_URL=http://localhost:8080/cybr
+export DEBUG=true
+
+main() {
+  # Login as admin to PAS
+  PASauthnCreds=$(echo "$PAS_ADMIN_NAME:$PAS_ADMIN_PASSWORD" | base64)
+  pasAuthnResponse=$($CURL -H "Authorization: Basic $PASauthnCreds" -H "Content-Type: application/json" "$BASE_URL/paslogin")
+  test "paslogin" "$pasAuthnResponse"
+
+  # Login as admin to Conjur
+  ConjurAuthnCreds=$(echo "$CONJUR_ADMIN_NAME:$CONJUR_ADMIN_PASSWORD" | base64)
+  conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjurlogin")
+  test "conjurlogin" "$conjurAuthnResponse"
+
+  # Revoke role from Conjur identity
+  authnResponse=$($CURL --request DELETE --url "$BASE_URL/accessgrants?identityName=$CONJUR_IDENTITY&groupRoleName=$CONJUR_GROUP_ROLE")
+  test "revokeAccessgrant" "$authnResponse"
+
+  # Delete Conjur identity
+  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjuridentities?identityName=$CONJUR_IDENTITY&policyBranch=root")
+  test "deleteConjuridentity" "$authnResponse"
+
+  # Delete accounts from safe
+  accountList=$($CURL --url "$BASE_URL/accounts?safeName=$PAS_SAFE_NAME")
+  test "listAccounts" "$accountList"
+
+  i=0
+  while true; do
+    acctId=$(echo $accountList | jq -r .value[$i].id)
+    if [[ $acctId != null ]]; then
+      accountDelete=$($CURL -X DELETE --url "$BASE_URL/accounts?accountId=$acctId")
+      test "deleteAccount" "$accountDelete"
+    else
+      break
+    fi
+    let i=$i+1
+  done
+
+  safeDelete=$($CURL -X DELETE --url "$BASE_URL/safes?safeName=$PAS_SAFE_NAME&lobName=$PAS_LOB_NAME&vaultName=$PAS_VAULT_NAME")
+  test "deleteSafe" "$safeDelete"
+}
+
+###################################
+test() {
+  if ! $DEBUG; then return; fi
+  local funcname=$1; shift
+  local value="$(echo $1 | tr -d '\r\n')"; shift
+
+  if [[ $value == null ]]; then
+    echo "$funcname returned null."
+  else
+    echo "$funcname returned:"
+    echo "$value"
+    echo
+  fi
+}
+
+main "$@"

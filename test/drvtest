@@ -1,0 +1,12 @@
+#!/bin/bash
+
+source ./cybrtest.config
+
+export DRIVER_DEBUG=true
+export PASJAVA_DEBUG=true
+export CONJURJAVA_DEBUG=true
+export JAVAREST_DEBUG=true
+
+java -cp ../lib/CybrDriver.jar:"$SP_CLASS_DIR/*" \
+	-Dhttps.protocols=TLSv1.2		\
+	CybrDriver
