@@ -11,13 +11,9 @@ from accountinfo import *
 
 import mysql.connector
 from mysql.connector import Error
+from dblayer import *
 
 class AccessRequestDetails:
-  dbConfig = {	'host': 'localhost',
-		'database': 'appgovdb',
-		'user': 'root',
-		'password': 'Cyberark1'}
-  dbConn = None
 
   def __init__(self, parent):
     mainframe = ttk.Frame(parent, padding="12 12 12 12")

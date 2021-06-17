@@ -1,9 +1,9 @@
 from loginwin import *
-from accessdetail import *
+from accessreview import *
 
 root = Tk()
 root.protocol("WM_DELETE_WINDOW", sys.exit)
-root.title("CyberArk Access Provisioning Request")
+root.title("CyberArk Access Review & Approval")
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 
@@ -18,5 +18,5 @@ logoLabel.image = logoImg
 logoLabel.grid(column=0, row=0, columnspan=5)
 
 LoginWin(root)
-AccessRequestDetails(root)
+AccessReview(root)
 root.mainloop()
