@@ -19,6 +19,7 @@ CREATE TABLE accessrequests (
   datetime DATETIME NOT NULL,
   approved BOOLEAN DEFAULT FALSE,
   provisioned BOOLEAN DEFAULT FALSE,
+  environment VARCHAR(30) NOT NULL,
   vault_name VARCHAR(30) NOT NULL,
   safe_name VARCHAR(30) NOT NULL,
   lob_name VARCHAR(30),

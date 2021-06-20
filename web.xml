@@ -77,4 +77,13 @@
     <url-pattern>/accessgrants</url-pattern>
   </servlet-mapping>
 
+  <servlet>
+    <servlet-name>ProvisioningServlet</servlet-name>
+    <servlet-class>ProvisioningServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ProvisioningServlet</servlet-name>
+    <url-pattern>/provision</url-pattern>
+  </servlet-mapping>
+
 </web-app>

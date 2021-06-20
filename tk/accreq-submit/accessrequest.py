@@ -13,7 +13,9 @@ import mysql.connector
 from mysql.connector import Error
 from dblayer import *
 
-class AccessRequestDetails:
+import requests
+
+class AccessRequest:
 
   def __init__(self, parent):
     mainframe = ttk.Frame(parent, padding="12 12 12 12")
@@ -41,45 +43,12 @@ class AccessRequestDetails:
 
   ######################################
   def submit(self, *args):
-    self.write_all_to_db()
+    self.provision_approved_reqs()
     sys.exit(0)
+    self.write_all_to_db()
 
-  ######################################
-  def writeJson(self, *args):
-    try:
-      # temporarily redirect stdout to file
-      stdout_old = sys.stdout
-      sys.stdout = open("auto-acc-req.json", 'w')
-      print("{")
-      self.projectInfo.print()
-      print(",")
-      self.identityInfo.print()
-      print(",")
-      self.accountInfo.print()
-      print("}")
-      sys.stdout = stdout_old
-      currdir = os.getcwd()
-      os.chdir('..')
-      p = subprocess.Popen(args=["./1-submit-access-request",
-				"./templates/access-request.json.template",
-				self.projectInfo.project.get(),
-				self.projectInfo.requestor.get(),
-				self.projectInfo.env.get()
-			])
-
-      p.communicate()
-      # if env == dev, go ahead and provision request w/o waiting for approval
-      if self.projectInfo.env.get() == 'dev':
-         subprocess.Popen(args=["./2-provision-access-request",
-				"./access-request"
-			])
-      os.chdir(currdir)
-      sys.exit(0)
-    except ValueError:
-      pass
-
-##############################
-# Writes form input variables to MySQL database
+  ##############################
+  # Writes form input variables to MySQL database
   def write_all_to_db(self, *args):
     projectDbId = self.projectInfo.write_to_db()
     accReqDbId = self.write_to_db(projectDbId)
@@ -87,19 +56,24 @@ class AccessRequestDetails:
     self.accountInfo.write_to_db(projectDbId)
     DBLayer.dbClose()
 
-##############################
-# Writes variables to MySQL database
+  ##############################
+  # Writes variables to MySQL database
   def write_to_db(self, projectDbId):
     # projectDbId is primary key for project in DB
     try:
       ts = time.time()
       timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
+      approved = 0
+      # if env == dev, approve request w/o waiting for approval
+      if self.projectInfo.env.get() == 'dev':
+        approved = 1
+
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "INSERT IGNORE INTO accessrequests "						\
-      		"(project_id, datetime, vault_name, safe_name, requestor, cpm_name, lob_name) "	\
-                "VALUES(%s,%s,%s,%s,%s,%s,%s)"
-      args = (projectDbId, timestamp, 'DemoVault', self.projectInfo.project.get(), self.projectInfo.requestor.get(), 'PasswordManager', 'CICD')
+      query = "INSERT IGNORE INTO accessrequests "									\
+      		"(approved, project_id, datetime, environment, vault_name, safe_name, requestor, cpm_name, lob_name) "	\
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+      args = (approved,projectDbId,timestamp,self.projectInfo.env.get(),'DemoVault',self.projectInfo.project.get(),self.projectInfo.requestor.get(),'PasswordManager','CICD')
       cursor.execute(query, args)
       accreqDbId = cursor.lastrowid;
       DBLayer.dbConn.commit()
@@ -107,3 +81,25 @@ class AccessRequestDetails:
       return accreqDbId
     except Error as e:
       print("Error while connecting to MySQL", e)
+
+  ##############################
+  # Provision all approved access requests
+  def provision_approved_reqs(self):
+    print("starting provisioning...")
+    try:
+      query = "SELECT id FROM accessrequests WHERE approved = 1 AND provisioned = 0"
+      cursor = DBLayer.dbConn.cursor(buffered=True)
+      cursor.execute(query)
+      accessRequestIds = cursor.fetchall()
+    except Error as e:
+      print("Error while connecting to MySQL", e)
+
+    print("Approved, unprovisioned IDs: ", accessRequestIds) 
+
+    apiEndpoint = 'http://localhost:8080/cybr'  
+    pasSessionToken = requests.get(apiEndpoint + '/paslogin', auth=('Administrator', 'Cyberark1')) 
+    conjurApiKey = requests.get(apiEndpoint + '/conjurlogin', auth=('admin', 'CYberark11@@')) 
+    for id in accessRequestIds:
+      print("Provisioning accReqId: ", id[0]) 
+      r = requests.post(url = apiEndpoint + "/provision?accReqId=" + str(id[0]), data = "")
+      print("Provisioning response: ", r)

@@ -12,6 +12,10 @@ echo
 echo "CATALINA.$DATESTAMP.LOG =================================="
 tail -10 $TOMCAT_HOME/logs/catalina.$DATESTAMP.log
 echo
+echo "CATALINA.OUT =================================="
+cat $TOMCAT_HOME/logs/catalina.out
+echo
+
 exit
 
 echo "HOST_MANAGER.$DATESTAMP.LOG =================================="
@@ -19,9 +23,6 @@ tail -10 $TOMCAT_HOME/logs/host-manager.${DATESTAMP}.log
 echo
 echo "MANAGER.$DATESTAMP.LOG =================================="
 tail -10 $TOMCAT_HOME/logs/manager.${DATESTAMP}.log
-echo
-echo "CATALINA.OUT =================================="
-tail -6 $TOMCAT_HOME/logs/catalina.out
 echo
 echo "LOCALHOST.$DATESTAMP.LOG =================================="
 tail -10 $TOMCAT_HOME/logs/localhost.$DATESTAMP.log

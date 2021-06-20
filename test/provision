@@ -2,7 +2,6 @@
 
 source ./cybrtest.config
 
-
 export CURL="curl -s"
 export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
@@ -18,15 +17,9 @@ main() {
   conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjurlogin")
   test "conjurlogin" "$conjurAuthnResponse"
 
-export DRIVER_DEBUG=true
-export PASJAVA_DEBUG=true
-export CONJURJAVA_DEBUG=true
-export JAVAREST_DEBUG=true
-
-  java -cp ../lib/CybrDriver.jar:../mysql/mysql.jar -Dhttps.protocols=TLSv1.2 CybrDriver
-
+  provResponse=$($CURL -X POST "$BASE_URL/provision?accReqId=1")
+  test "provision" "$provResponse"
 }
-
 
 ###################################
 test() {

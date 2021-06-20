@@ -1,5 +1,5 @@
 from loginwin import *
-from accessdetail import *
+from accessrequest import *
 
 root = Tk()
 root.protocol("WM_DELETE_WINDOW", sys.exit)
@@ -18,5 +18,5 @@ logoLabel.image = logoImg
 logoLabel.grid(column=0, row=0, columnspan=5)
 
 LoginWin(root)
-AccessRequestDetails(root)
+AccessRequest(root)
 root.mainloop()
