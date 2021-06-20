@@ -23,7 +23,7 @@ export PASJAVA_DEBUG=true
 export CONJURJAVA_DEBUG=true
 export JAVAREST_DEBUG=true
 
-  java -cp ../lib/CybrDriver.jar:../mysql/mysql.jar -Dhttps.protocols=TLSv1.2 CybrDriver
+  java -cp ../lib/CybrDriver.jar:../mysql/mysql-connector-java-8.0.25.jar -Dhttps.protocols=TLSv1.2 CybrDriver
 
 }
 
