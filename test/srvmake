@@ -25,12 +25,19 @@ main() {
   accountAdd=$($CURL -X POST --url "$BASE_URL/accounts?safeName=$PAS_SAFE_NAME&accountName=$PAS_ACCOUNT_NAME&platformId=$PAS_PLATFORM_ID&address=$PAS_ACCOUNT_ADDRESS&userName=$PAS_ACCOUNT_USERNAME&secretType=$PAS_ACCOUNT_SECRET_TYPE&secretValue=$PAS_ACCOUNT_SECRET_VALUE");
   test "accountAdd" "$accountAdd"
 
+  # Create a Conjur base policy branch for project
+  policyText="- !policy $PROJECT_NAME"
   # Create a Conjur identity
-  authnResponse=$($CURL --request POST --url "$BASE_URL/conjuridentities?identityName=$CONJUR_IDENTITY&policyBranch=root")
-  test "conjurIdentityCreate" "$authnResponse"
+  policyAdd=$($CURL --request POST --url "$BASE_URL/conjurpolicies?policyText=$policyText&policyBranch=root")
+  test "conjurPolicyAdd" "$policyAdd"
 
-  # Grant role to Conjur identity
-  authnResponse=$($CURL --request POST --url "$BASE_URL/accessgrants?identityName=$CONJUR_IDENTITY&groupRoleName=$CONJUR_GROUP_ROLE")
+  # Create a Conjur idenitity, apply to policy branch for project
+  policyText="- !host $CONJUR_IDENTITY"
+  policyAdd=$($CURL --request POST --url "$BASE_URL/conjurpolicies?policyText=$policyText&policyBranch=$PROJECT_NAME")
+  test "conjurPolicyAdd" "$policyAdd"
+
+  # Grant group role to Conjur identity
+  authnResponse=$($CURL --request POST --url "$BASE_URL/conjuraccessgrants?identityName=$CONJUR_IDENTITY&groupRoleName=$CONJUR_GROUP_ROLE&policyBranch=$PROJECT_NAME")
   test "accessgrant" "$authnResponse"
 }
 

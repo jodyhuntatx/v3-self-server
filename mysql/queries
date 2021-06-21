@@ -1,3 +1,7 @@
+SELECT pr.name, id.name
+FROM projects pr, appidentities id, accessrequests ar
+WHERE ar.id = 2 AND id.accreq_id = ar.id AND ar.project_id = pr.id;
+
 select * from projects;
 select * from accessrequests;
 select * from appidentities;
@@ -13,3 +17,4 @@ accreq.project_id = proj.id
 AND appid.accreq_id = accreq.id
 AND appid.project_id = proj.id
 AND cybracct.project_id = proj.id;
+

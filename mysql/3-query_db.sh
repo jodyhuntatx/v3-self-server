@@ -1,2 +1,2 @@
-cat db_query_appgovdb.sql \
+cat $1 \
 | docker exec -i mysql-server mysql -u root --password=Cyberark1 appgovdb

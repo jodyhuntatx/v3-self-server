@@ -22,7 +22,7 @@ main() {
   test "revokeAccessgrant" "$authnResponse"
 
   # Delete Conjur identity
-  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjuridentities?identityName=$CONJUR_IDENTITY&policyBranch=root")
+  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjurpolicies?policyText=$POLICY_TEXT&policyBranch=root")
   test "deleteConjuridentity" "$authnResponse"
 
   # Delete accounts from safe

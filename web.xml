@@ -60,21 +60,39 @@
   </servlet-mapping>
 
   <servlet>
-    <servlet-name>ConjurIdentitiesServlet</servlet-name>
-    <servlet-class>ConjurIdentitiesServlet</servlet-class>
+    <servlet-name>ConjurBasePolicyServlet</servlet-name>
+    <servlet-class>ConjurBasePolicyServlet</servlet-class>
   </servlet>
   <servlet-mapping>
-    <servlet-name>ConjurIdentitiesServlet</servlet-name>
-    <url-pattern>/conjuridentities</url-pattern>
+    <servlet-name>ConjurBasePolicyServlet</servlet-name>
+    <url-pattern>/conjurpolicies/basepolicy</url-pattern>
   </servlet-mapping>
 
   <servlet>
-    <servlet-name>ConjurAccessGrantServlet</servlet-name>
-    <servlet-class>ConjurAccessGrantServlet</servlet-class>
+    <servlet-name>ConjurSafePolicyServlet</servlet-name>
+    <servlet-class>ConjurSafePolicyServlet</servlet-class>
   </servlet>
   <servlet-mapping>
-    <servlet-name>ConjurAccessGrantServlet</servlet-name>
-    <url-pattern>/accessgrants</url-pattern>
+    <servlet-name>ConjurSafePolicyServlet</servlet-name>
+    <url-pattern>/conjurpolicies/safepolicy</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>ConjurIdentityPolicyServlet</servlet-name>
+    <servlet-class>ConjurIdentityPolicyServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ConjurIdentityPolicyServlet</servlet-name>
+    <url-pattern>/conjurpolicies/identitypolicy</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
+    <servlet-name>ConjurAccessPolicyServlet</servlet-name>
+    <servlet-class>ConjurAccessPolicyServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ConjurAccessPolicyServlet</servlet-name>
+    <url-pattern>/conjurpolicies/accesspolicy</url-pattern>
   </servlet-mapping>
 
   <servlet>

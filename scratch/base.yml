@@ -1,0 +1,5 @@
+- !host jhunt
+- !policy
+  id: foo
+  owner: !host jhunt
+  body:

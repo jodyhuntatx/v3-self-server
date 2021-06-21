@@ -1,0 +1,26 @@
+- !delete
+  record: !policy Project1
+
+- !delete
+  record: !policy Project2
+
+- !delete
+  record: !host jhunt
+
+- !delete
+  record: !policy DemoVault/CICD/Project1/delegation
+
+- !delete
+  record: !policy DemoVault/CICD/Project2/delegation
+
+- !delete
+  record: !group DemoVault/CICD/Project1-admins
+
+- !delete
+  record: !group DemoVault/CICD/Project2-admins
+
+- !delete
+  record: !policy DemoVault/CICD/Project1
+
+- !delete
+  record: !policy DemoVault/CICD/Project2

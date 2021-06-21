@@ -1,5 +1,7 @@
 /*
  * Defines REST endpoints to:
+ *  - Provision an access request
+ *  - Deprovision an access request
  */
 
 import java.util.logging.Level;
@@ -36,6 +38,7 @@ public class ProvisioningServlet extends HttpServlet {
   }
 
   // +++++++++++++++++++++++++++++++++++++++++
+  // Provisions PAS safe, accounts, Conjur Sync policy, Conjur project policy, identities and access grants
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response)  
         throws ServletException, IOException {  
@@ -57,24 +60,25 @@ public class ProvisioningServlet extends HttpServlet {
       prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
-      rs.next(); 
-      String safeName = rs.getString("safe_name");
-      String cpmName = rs.getString("cpm_name");
-      String lobName = rs.getString("lob_name");
-      String vaultName = rs.getString("vault_name");
+      while(rs.next()) { 		// unique access request id guarantees only one row returned
+        String safeName = rs.getString("safe_name");
+        String cpmName = rs.getString("cpm_name");
+        String lobName = rs.getString("lob_name");
+        String vaultName = rs.getString("vault_name");
 
-      requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/safes"
-				+ "?safeName=" + safeName
-                                + "&cpmName=" + cpmName
-                                + "&lobName=" + lobName
-                                + "&vaultName=" + vaultName;
-      logger.log(Level.INFO, "Add safe: " + requestUrl);
-      safeResponse = JavaREST.httpPost(requestUrl, "", "");
+        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/safes"
+  							+ "?safeName=" + safeName
+                                			+ "&cpmName=" + cpmName
+                                			+ "&lobName=" + lobName
+                                			+ "&vaultName=" + vaultName;
+        logger.log(Level.INFO, "Add safe: " + requestUrl);
+        safeResponse = JavaREST.httpPost(requestUrl, "", "");
+      }
     } catch (SQLException e) {
       e.printStackTrace();
     }
 
-    // Add an account to the safe
+    // Add specified accounts to the safe
     String accountResponse = "";
     querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
 		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
@@ -108,14 +112,121 @@ public class ProvisioningServlet extends HttpServlet {
       e.printStackTrace();
     }
 
-    response.getOutputStream().println("{" + safeResponse + "," + accountResponse + "}");
+    // Create Conjur base policy for project, per CyberArk PS best-practices
+    String basePolicyResponse = "";
+    try {
+      conn = DriverManager.getConnection(ProvisioningServlet.DB_URL,
+                                         ProvisioningServlet.DB_USER,
+                                         ProvisioningServlet.DB_PASSWORD);
+      querySql = "SELECT pr.name, pr.admin "
+		+ "FROM projects pr, accessrequests ar "
+		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
+      prepStmt = conn.prepareStatement(querySql);
+      prepStmt.setString(1, accReqId);
+      ResultSet rs = prepStmt.executeQuery();
+      while(rs.next()) {
+        String projectName = rs.getString("pr.name");
+        String adminName = rs.getString("pr.admin");
 
-  // Create a Conjur identity
-//  authnResponse=$($CURL --request POST --url "$BASE_URL/conjuridentities?identityName=$CONJUR_IDENTITY&policyBranch=root")
+        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjurpolicies/basepolicy"
+   			                               + "?projectName=" + projectName
+   			                               + "&adminName=" + adminName;
 
-  // Grant role to Conjur identity
-//  authnResponse=$($CURL --request POST --url "$BASE_URL/accessgrants?identityName=$CONJUR_IDENTITY&groupRoleName=$CONJUR_GROUP_ROLE")
+        logger.log(Level.INFO, "Add base project policy: " + requestUrl);
+        basePolicyResponse = JavaREST.httpPost(requestUrl, "", "");
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
 
+    // Create Conjur safe policy for project
+    String safePolicyResponse = "";
+    try {
+      conn = DriverManager.getConnection(ProvisioningServlet.DB_URL,
+                                         ProvisioningServlet.DB_USER,
+                                         ProvisioningServlet.DB_PASSWORD);
+      querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
+		+ "FROM projects pr, accessrequests ar "
+		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
+      prepStmt = conn.prepareStatement(querySql);
+      prepStmt.setString(1, accReqId);
+      ResultSet rs = prepStmt.executeQuery();
+      while(rs.next()) {
+        String projectName = rs.getString("pr.name");
+        String vaultName = rs.getString("ar.vault_name");
+        String lobName = rs.getString("ar.lob_name");
+        String safeName = rs.getString("ar.safe_name");
+        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjurpolicies/safepolicy"
+     			                               + "?projectName=" + projectName
+   			                               + "&vaultName=" + vaultName
+   			                               + "&lobName=" + lobName
+   			                               + "&safeName=" + safeName;
+        logger.log(Level.INFO, "Add safe project policy: " + requestUrl);
+        safePolicyResponse = JavaREST.httpPost(requestUrl, "", "");
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+
+    // Create Conjur identity policy for project
+    String identityPolicyResponse = "";
+    try {
+      conn = DriverManager.getConnection(ProvisioningServlet.DB_URL,
+                                         ProvisioningServlet.DB_USER,
+                                         ProvisioningServlet.DB_PASSWORD);
+      querySql =  "SELECT pr.name, appid.name "
+		+ "FROM projects pr, appidentities appid "
+		+ "WHERE appid.accreq_id = ? AND appid.project_id = pr.id";
+      prepStmt = conn.prepareStatement(querySql);
+      prepStmt.setString(1, accReqId);
+      ResultSet rs = prepStmt.executeQuery();
+      while(rs.next()) {
+        String projectName = rs.getString("pr.name");
+        String idName = rs.getString("appid.name");
+        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjurpolicies/identitypolicy"
+   			                               + "?projectName=" + projectName
+   			                               + "&identityName=" + idName;
+        logger.log(Level.INFO, "Add identity policy: " + requestUrl);
+        identityPolicyResponse = identityPolicyResponse + JavaREST.httpPost(requestUrl, "", "");
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+
+    // Grant safe/consumers group role to identity
+    String accessPolicyResponse = "";
+    try {
+      conn = DriverManager.getConnection(ProvisioningServlet.DB_URL,
+                                         ProvisioningServlet.DB_USER,
+                                         ProvisioningServlet.DB_PASSWORD);
+      querySql = "SELECT pr.name, appid.name, ar.safe_name "
+		+ "FROM projects pr, appidentities appid, accessrequests ar "
+		+ "WHERE ar.id = ? AND appid.accreq_id = ar.id AND ar.project_id = pr.id";
+      prepStmt = conn.prepareStatement(querySql);
+      prepStmt.setString(1, accReqId);
+      ResultSet rs = prepStmt.executeQuery();
+      while(rs.next()) {
+        String projectName = rs.getString("pr.name");
+        String idName = rs.getString("appid.name");
+        String safeName = rs.getString("ar.safe_name");
+        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjurpolicies/accesspolicy"
+   			                             + "?projectName=" + projectName
+   			                             + "&identityName=" + idName
+   			                             + "&groupRoleName=" + safeName + "/consumers";
+        logger.log(Level.INFO, "Add access policy: " + requestUrl);
+        accessPolicyResponse = accessPolicyResponse + JavaREST.httpPost(requestUrl, "", "");
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+
+    response.getOutputStream().println("{"
+					+ safeResponse + ","
+					+ accountResponse + ","
+					+ basePolicyResponse + ","
+					+ safePolicyResponse + ","
+					+ identityPolicyResponse + ","
+					+ accessPolicyResponse + "}");
   }
   
 } // ProvisioningServlet
