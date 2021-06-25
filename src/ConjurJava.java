@@ -84,9 +84,8 @@ public class ConjurJava {
 	}
 
 	String rawToken = JavaREST.httpPost(requestUrl, _apiKey, "");
-        logger.log(Level.INFO, "Raw token: " + rawToken);
+        logger.log(Level.INFO, "Unencoded access token: " + rawToken);
 	conjurAccessToken = base64Encode(rawToken);
-        logger.log(Level.INFO, "Access token: " + conjurAccessToken);
 	return conjurAccessToken;
     }
 

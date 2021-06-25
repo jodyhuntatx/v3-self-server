@@ -30,7 +30,7 @@ public class CybrDriver {
 
       disableSSL();
 
-	String DB_URL = "jdbc:mysql://localhost/appgovdb";
+	String DB_URL = "jdbc:mysql://conjurmaster2.northcentralus.cloudapp.azure.com/appgovdb";
 	String DB_USER = "root";
 	String DB_PASSWORD = "Cyberark1";
 	String CYBR_BASE_URL = "http://localhost:8080/cybr";

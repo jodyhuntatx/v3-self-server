@@ -1,1 +1,3 @@
-docker exec -it mysql-server mysql -u root --password=Cyberark1 appgovdb
+#!/bin/bash
+source ./mysql.config
+$DOCKER exec -it $MYSQL_SERVER mysql -h $MYSQL_HOSTNAME -u root --password=$MYSQL_ROOT_PASSWORD

@@ -12,7 +12,7 @@ s.configure('Cybr.TFrame', background='cornflower blue', borderwidth=5, relief='
 s.configure('Cybr.TLabel', background='cornflower blue', borderwidth=5, relief='raised')
 s.configure('Cybr.TButton', background='cornflower blue', borderwidth=5, relief='raised')
 
-logoImg = PhotoImage(file='cyberark-logo.png')
+logoImg = PhotoImage(file='Acme-corp.png')
 logoLabel = ttk.Label(root, image=logoImg, compound='center')
 logoLabel.image = logoImg
 logoLabel.grid(column=0, row=0, columnspan=5)

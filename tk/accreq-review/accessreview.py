@@ -5,10 +5,13 @@ import datetime
 import subprocess
 from tkinter import *
 from tkinter import ttk
+import tkinter as tk
 
 import mysql.connector
 from mysql.connector import Error
 from dblayer import *
+
+import requests
 
 class AccessReview:
 
@@ -17,67 +20,215 @@ class AccessReview:
     mainframe = ttk.Frame(parent, width=1000, padding="12 12 12 12")
     mainframe.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
 
-    ttk.Button(parent, text="Exit", command=self.exit, style='Cybr.TButton').grid(column=3, row=5, sticky=E)
-    parent.bind("<Return>", self.exit)
-
     accreqLabel = ttk.Label(parent,text='Access Requests',font=('Helvetica bold',14),anchor='center')
     accreqLabel.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
+
+    # cols must correspond to fields in SELECT statements for all treeviews
+    self.cols=('RequestId','Project','DateTime','Environment','Safe','AppId','Account','Target')
+    self.unapprTree = None
+    self.unprovTree = None
+    self.provTree = None
 
     #################################
     # Unapproved access requests
     #################################
-    unapprFrame = ttk.LabelFrame(parent, text='Unapproved', padding="3 3 12 12")
-    unapprFrame.grid(column=0, row=2, sticky=(N, W, E, S), columnspan=3)
-    unapprFrame.columnconfigure(0, weight=1)
-    unapprFrame.rowconfigure(0, weight=1)
+    self.unapprFrame = ttk.LabelFrame(parent, text='Unapproved', padding="3 3 12 12")
+    self.unapprFrame.grid(column=0, row=2, sticky=(N, W, E, S), columnspan=3)
+    self.unapprFrame.columnconfigure(0, weight=1)
+    self.unapprFrame.rowconfigure(0, weight=1)
+    self.buildUnapprovedTree(self.unapprFrame)
 
+    #################################
+    # Approved/Not Provisioned access requests
+    #################################
+    self.unprovFrame = ttk.LabelFrame(parent, text='Approved/Provisioning Incomplete', padding="3 3 12 12")
+    self.unprovFrame.grid(column=0, row=3, sticky=(N, W, E, S), columnspan=3)
+    self.unprovFrame.columnconfigure(0, weight=1)
+    self.unprovFrame.rowconfigure(0, weight=1)
+    self.buildUnprovisionedTree(self.unprovFrame)
+
+    #################################
+    # Provisioned access requests
+    #################################
+    self.provFrame = ttk.LabelFrame(parent, text='Provisioned', padding="3 3 12 12")
+    self.provFrame.grid(column=0, row=4, sticky=(N, W, E, S), columnspan=3)
+    self.provFrame.columnconfigure(0, weight=1)
+    self.provFrame.rowconfigure(0, weight=1)
+    self.buildProvisionedTree(self.provFrame)
+
+    # Refresh button at bottom right of main window
+    ttk.Button(parent, text="Refresh", command=self.refresh, style='Cybr.TButton').grid(column=3, row=1, sticky=E)
+
+    # Exit button at bottom right of main window
+    ttk.Button(parent, text="Exit", command=self.exit, style='Cybr.TButton').grid(column=3, row=5, sticky=E)
+    parent.bind("<Return>", self.exit)
+
+    for child in parent.winfo_children():
+        child.grid_configure(padx=10, pady=10)
+
+######################################
+  # Build Unapproved access request treeview
+  def buildUnapprovedTree(self,parent):
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name "	\
+      query = "SELECT accreq.id, proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name " \
 		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
 		"WHERE NOT accreq.approved AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "	\
 		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
-      print("Error while connecting to MySQL", e)
-
-    # cols correspond to SELECT fields
-    cols=('Project','DateTime','Environment','Safe','AppId','Account','Target')
+      print("buildUnapprovedTree: Error selecting unapproved access requests.", e)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0,0]
+    maxwidths = [0,0,0,0,0,0,0,0]
     for req in accessRequests:
-      for i in range(len(cols)):
+      for i in range(len(self.cols)):
         if len(str(req[i])) > maxwidths[i]:
           maxwidths[i] = len(str(req[i]))
 
-    unapprTree = ttk.Treeview(unapprFrame, height=5, columns=cols)
-    unapprTree['show'] = 'headings'
-    unapprTree.column('#0',minwidth=0,width=0)	# minimize width of 'ghost' column
-    for c in range(len(cols)):
-      unapprTree.column(cols[c], width=maxwidths[c], anchor='center')
-      unapprTree.heading(cols[c],text=cols[c])
+    if self.unapprTree is not None:
+      self.unapprTree.destroy()
+
+    self.unapprTree = ttk.Treeview(parent, height=5, columns=self.cols)
+    self.unapprTree['show'] = 'headings'
+
+    for c in range(len(self.cols)):
+      self.unapprTree.column(self.cols[c], width=maxwidths[c], anchor='center')
+      self.unapprTree.heading(self.cols[c],text=self.cols[c])
 
     for req in accessRequests:
-      unapprTree.insert('','end',value=req)
-    unapprTree.grid(column=0, row=0, sticky=(N, W, E, S),columnspan=3)
+      self.unapprTree.insert('','end',value=req)
 
-    #################################
-    # Approved/Unprovisioned access requests
-    #################################
-    unprovFrame = ttk.LabelFrame(parent, text='Approved/Unprovisioned', padding="3 3 12 12")
-    unprovFrame.grid(column=0, row=3, sticky=(N, W, E, S), columnspan=3)
-    unprovFrame.columnconfigure(0, weight=1)
-    unprovFrame.rowconfigure(0, weight=1)
+    #++++++++++++++++++++++++++++++++++++++
+    # setup popup menu for approvals
+    self.unapprTree.popup_menu = tk.Menu(self.unapprTree, tearoff=0)
+    self.unapprTree.popup_menu.add_command(label="Approve", command=self.approve)
+    self.unapprTree.popup_menu.add_separator()
+    def do_popup(event):
+      # display the popup menu
+      try:
+        self.unapprTree.popup_menu.selection = self.unapprTree.set(self.unapprTree.identify_row(event.y))
+        self.unapprTree.popup_menu.post(event.x_root, event.y_root)
+      finally:
+        # make sure to release the grab (Tk 8.0a1 only)
+        self.unapprTree.popup_menu.grab_release()
+    self.unapprTree.bind("<Button-2>", do_popup)
 
+    self.unapprTree.grid(column=0, row=0, sticky=(N, W, E, S),columnspan=3)
+
+######################################
+  def approve(self):
+    try:
+      approvedReqId = self.unapprTree.popup_menu.selection['RequestId']
+    except LookupError:
+      return
+
+    # update approval status of selected access request 
+    try:
+      cursor = DBLayer.dbConn.cursor(buffered=True)
+      cursor.execute("""UPDATE accessrequests SET approved=1 WHERE id=%s""", (approvedReqId,))
+      DBLayer.dbConn.commit()
+    except Error as e:
+      print("approve: Error updating accessrequest", e)
+
+    self.buildUnapprovedTree(self.unapprFrame)		# rebuild unapproved tree w/o approved access request
+    self.buildUnprovisionedTree(self.unprovFrame)	# rebuild unprovisioned tree w/ approved access request
+
+######################################
+  def popup(self, event):
+      try:
+          self.popup_menu.tk_popup(event.x_root, event.y_root, 0)
+      finally:
+          self.popup_menu.grab_release()
+
+######################################
+  def buildUnprovisionedTree(self,parent):
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name "	\
+      query = "SELECT accreq.id, proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name " \
 		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
-		"WHERE accreq.approved AND NOT accreq.provisioned "						\
+		"WHERE accreq.approved AND NOT accreq.provisioned AND NOT accreq.deprovisioned "		\
+		"AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "				\
+		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
+      cursor.execute(query)
+      accessRequests = cursor.fetchall()
+    except Error as e:
+      print("buildApprovedTree: Error selecting approved access requests", e)
+
+    # get max column widths for each column
+    maxwidths = [0,0,0,0,0,0,0,0]
+    for req in accessRequests:
+      for i in range(len(self.cols)):
+        if len(str(req[i])) > maxwidths[i]:
+          maxwidths[i] = len(str(req[i]))
+
+    if self.unprovTree is not None:
+      self.unprovTree.destroy()
+
+    self.unprovTree = ttk.Treeview(parent, height=5, columns=self.cols)
+    self.unprovTree['show'] = 'headings'
+    self.unprovTree.column('#0',minwidth=0,width=0)	# minimize width of 'ghost' column
+    for c in range(len(self.cols)):
+      self.unprovTree.column(self.cols[c], width=maxwidths[c], anchor='center')
+      self.unprovTree.heading(self.cols[c],text=self.cols[c])
+
+    for req in accessRequests:
+      self.unprovTree.insert('','end',value=req)
+
+    #++++++++++++++++++++++++++++++++++++++
+    # setup popup menu for provisioning
+    self.unprovTree.popup_menu = tk.Menu(self.unprovTree, tearoff=0)
+    self.unprovTree.popup_menu.add_command(label="Provision", command=self.provision)
+    self.unprovTree.popup_menu.add_separator()
+    def do_popup(event):
+      # display the popup menu
+      try:
+        self.unprovTree.popup_menu.selection = self.unprovTree.set(self.unprovTree.identify_row(event.y))
+        self.unprovTree.popup_menu.post(event.x_root, event.y_root)
+      finally:
+        # make sure to release the grab (Tk 8.0a1 only)
+        self.unprovTree.popup_menu.grab_release()
+    self.unprovTree.bind("<Button-2>", do_popup)
+
+    self.unprovTree.grid(column=0, row=1, sticky=(N, W, E, S),columnspan=3)
+
+######################################
+  def provision(self):
+    try:
+      provisionReqId = self.unprovTree.popup_menu.selection['RequestId']
+    except LookupError:
+      return
+
+    # make REST call to provision access request from DB    
+    apiEndpoint = 'http://localhost:8080/cybr'
+    pasSessionToken = requests.get(apiEndpoint + '/pas/login', auth=('Administrator', 'Cyberark1'))
+    conjurApiKey = requests.get(apiEndpoint + '/conjur/login', auth=('admin', 'CYberark11@@'))
+    print("Provisioning accReqId: ", provisionReqId)
+    r = requests.post(url = apiEndpoint + "/provision?accReqId=" + provisionReqId, data = "")
+    print("Provisioning response: ", r)
+
+    # update provisioned status of selected access request 
+    try:
+      cursor = DBLayer.dbConn.cursor(buffered=True)
+      cursor.execute("""UPDATE accessrequests SET provisioned=1 WHERE id=%s""", (provisionReqId,))
+      DBLayer.dbConn.commit()
+    except Error as e:
+      print("provision: Error updating accessrequest provisioned status", e)
+
+    self.buildUnprovisionedTree(self.unprovFrame)	# rebuild unprovisioned tree w/o approved access request
+    self.buildProvisionedTree(self.provFrame)		# rebuild provisioned tree w/ provisioned access request
+
+######################################
+  def buildProvisionedTree(self,parent):
+    # get access request data from db
+    try:
+      cursor = DBLayer.dbConn.cursor(buffered=True)
+      query = "SELECT accreq.id, proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name "	\
+		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
+		"WHERE accreq.provisioned AND NOT accreq.deprovisioned "					\
 		"AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "				\
 		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
       cursor.execute(query)
@@ -85,71 +236,74 @@ class AccessReview:
     except Error as e:
       print("Error while connecting to MySQL", e)
 
-    # cols correspond to SELECT fields
-    cols=('Project','DateTime','Environment','Safe','AppId','Account','Target')
-
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0,0]
+    maxwidths = [0,0,0,0,0,0,0,0]
     for req in accessRequests:
-      for i in range(len(cols)):
+      for i in range(len(self.cols)):
         if len(str(req[i])) > maxwidths[i]:
           maxwidths[i] = len(str(req[i]))
 
-    unprovTree = ttk.Treeview(unprovFrame, height=5, columns=cols)
-    unprovTree['show'] = 'headings'
-    unprovTree.column('#0',minwidth=0,width=0)	# minimize width of 'ghost' column
-    for c in range(len(cols)):
-      unprovTree.column(cols[c], width=maxwidths[c], anchor='center')
-      unprovTree.heading(cols[c],text=cols[c])
+    if self.provTree is not None:
+      self.provTree.destroy()
+
+    self.provTree = ttk.Treeview(parent, height=5, columns=self.cols)
+    self.provTree['show'] = 'headings'
+    self.provTree.column('#0',minwidth=0,width=0)	# minimize width of 'ghost' column
+    for c in range(len(self.cols)):
+      self.provTree.column(self.cols[c], width=maxwidths[c], anchor='center')
+      self.provTree.heading(self.cols[c],text=self.cols[c])
 
     for req in accessRequests:
-      unprovTree.insert('','end',value=req)
-    unprovTree.grid(column=0, row=1, sticky=(N, W, E, S),columnspan=3)
+      self.provTree.insert('','end',value=req)
 
-    #################################
-    # Provisioned access requests
-    #################################
-    provFrame = ttk.LabelFrame(parent, text='Provisioned', padding="3 3 12 12")
-    provFrame.grid(column=0, row=4, sticky=(N, W, E, S), columnspan=3)
-    provFrame.columnconfigure(0, weight=1)
-    provFrame.rowconfigure(0, weight=1)
+    #++++++++++++++++++++++++++++++++++++++
+    # setup popup menu for deprovisioning
+    self.provTree.popup_menu = tk.Menu(self.provTree, tearoff=0)
+    self.provTree.popup_menu.add_command(label="Deprovision", command=self.deprovision)
+    self.provTree.popup_menu.add_separator()
+    def do_popup(event):
+      # display the popup menu
+      try:
+        self.provTree.popup_menu.selection = self.provTree.set(self.provTree.identify_row(event.y))
+        self.provTree.popup_menu.post(event.x_root, event.y_root)
+      finally:
+        # make sure to release the grab (Tk 8.0a1 only)
+        self.provTree.popup_menu.grab_release()
+    self.provTree.bind("<Button-2>", do_popup)
 
-    # get access request data from db
+    self.provTree.grid(column=0, row=1, sticky=(N, W, E, S),columnspan=3)
+
+######################################
+  def deprovision(self):
+    try:
+      deprovisionReqId = self.provTree.popup_menu.selection['RequestId']
+    except LookupError:
+      return
+
+    # make REST call to deprovision access request from DB
+    apiEndpoint = 'http://localhost:8080/cybr'
+    pasSessionToken = requests.get(apiEndpoint + '/pas/login', auth=('Administrator', 'Cyberark1'))
+    conjurApiKey = requests.get(apiEndpoint + '/conjur/login', auth=('admin', 'CYberark11@@'))
+    print("Deprovisioning accReqId: ", deprovisionReqId)
+    r = requests.delete(url = apiEndpoint + "/provision?accReqId=" + deprovisionReqId, data = "")
+    print("Deprovisioning response: ", r)
+
+    # update provisioned status of selected access request
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name "	\
-		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
-		"WHERE accreq.provisioned AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "	\
-		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
-      cursor.execute(query)
-      accessRequests = cursor.fetchall()
+      cursor.execute("""UPDATE accessrequests SET deprovisioned=1 WHERE id=%s""", (deprovisionReqId,))
+      DBLayer.dbConn.commit()
     except Error as e:
-      print("Error while connecting to MySQL", e)
+      print("deprovision: Error updating accessrequest deprovisioned status", e)
 
-    # cols correspond to SELECT fields
-    cols=('Project','DateTime','Environment','Safe','AppId','Account','Target')
+    self.buildProvisionedTree(self.provFrame)           # rebuild provisioned tree w/o provisioned access request
 
-    # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0,0]
-    for req in accessRequests:
-      for i in range(len(cols)):
-        if len(str(req[i])) > maxwidths[i]:
-          maxwidths[i] = len(str(req[i]))
-
-    provTree = ttk.Treeview(provFrame, height=5, columns=cols)
-    provTree['show'] = 'headings'
-    provTree.column('#0',minwidth=0,width=0)	# minimize width of 'ghost' column
-    for c in range(len(cols)):
-      provTree.column(cols[c], width=maxwidths[c], anchor='center')
-      provTree.heading(cols[c],text=cols[c])
-
-    for req in accessRequests:
-      provTree.insert('','end',value=req)
-    provTree.grid(column=0, row=1, sticky=(N, W, E, S),columnspan=3)
-
-
-    for child in parent.winfo_children():
-        child.grid_configure(padx=10, pady=10)
+######################################
+  def refresh(self, *args):
+    print("Refreshing frames...")
+    self.buildUnapprovedTree(self.unapprFrame)
+    self.buildUnprovisionedTree(self.unprovFrame)
+    self.buildProvisionedTree(self.provFrame) 
 
 ######################################
   def exit(self, *args):

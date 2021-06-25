@@ -115,10 +115,11 @@ public class JavaREST {
 	    BufferedReader br = new BufferedReader(new InputStreamReader(
 				(conn.getInputStream())));
 
-	    String tmp;
-	    while ((tmp = br.readLine()) != null) {
-			output = output + tmp;
-	    }
+            output = br.readLine();
+            String tmp;
+            while ((tmp = br.readLine()) != null) {
+                output = output + System.lineSeparator() + tmp;
+            }
 
 	    conn.disconnect();
 
@@ -164,6 +165,9 @@ public class JavaREST {
 
 	    switch(conn.getResponseCode()) {
 		case 201 :
+		    break;
+		case 404 :
+		    output = "{httpPatch: \"Resource not found.\"}";
 		    break;
 		default :
 		    output = null;

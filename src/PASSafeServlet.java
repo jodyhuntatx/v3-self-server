@@ -16,9 +16,9 @@ import javax.servlet.http.HttpServletResponse;
 // POST = add safe
 // PUT = update safe with LOB member and load corresponding Conjur sync policy.
 // DELETE = delete safe and corresponding Conjur sync policy.
-public class SafeServlet extends HttpServlet {
+public class PASSafeServlet extends HttpServlet {
     /** Logger */
-    private static final Logger logger = Logger.getLogger(SafeServlet.class.getName());
+    private static final Logger logger = Logger.getLogger(PASSafeServlet.class.getName());
 
 
   @Override

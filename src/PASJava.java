@@ -74,22 +74,13 @@ public class PASJava {
 				+ "\"password\":\"" + _password + "\""
 			   + "}";
 
+        logger.log(Level.INFO, "PAS Authenticate requestUrl: " + requestUrl);
 	// get session token and save w/o double quotes
 	pasSessionToken = JavaREST.httpPost(requestUrl, bodyContent, "");
 	if (pasSessionToken != null) {
 	  pasSessionToken = pasSessionToken.replace("\"","");
         }
-
-	if(PASJava.DEBUG) {
-	    System.out.println("");
-	    System.out.println("====== PASJava.login() ======");
-	    System.out.println("requestUrl: " + requestUrl);
-	    System.out.println("bodyContent: " + bodyContent);
-	    System.out.println("sessionToken: " + pasSessionToken);
-	    System.out.println("=============================");
-	    System.out.println("");
-	}
-
+        logger.log(Level.INFO, "PAS session token: " + pasSessionToken);
 	return pasSessionToken;
 
     } //logon

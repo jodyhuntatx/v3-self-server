@@ -24,16 +24,17 @@ public class ConjurSafePolicyServlet extends HttpServlet {
   // +++++++++++++++++++++++++++++++++++++++++
   // Appends Conjur base policy with given name at root policy branch
   @Override
-  public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+  public void doPost(HttpServletRequest request, HttpServletResponse response)
+	throws IOException, ServletException {
     String projectName = request.getParameter("projectName");
     String vaultName = request.getParameter("vaultName");
     String lobName = request.getParameter("lobName");
     String safeName = request.getParameter("safeName");
 
-    // The safe/consumers group role is necessary because policies created by the Synchronizer can
-    // only be applied at the root policy, necessitating root admin privileges. The safe/consumers role
-    // in effect aliases the Synchronizer group role as a group under the policy. This also separates
-    // Synchronizer-managed policies from the project.
+    // The safe/consumers group role in a project's policy is necessary because policies created by the
+    // Synchronizer can only be applied at the root policy, necessitating root admin privileges. The 
+    // safe/consumers role in effect aliases the Synchronizer group role as a group under the policy.
+    // This also serves to separate Synchronizer-managed policies from the project.
 
     // first create group in policy
     String policyText = "- !group " + safeName + "/consumers";
@@ -52,8 +53,11 @@ public class ConjurSafePolicyServlet extends HttpServlet {
   // +++++++++++++++++++++++++++++++++++++++++
   // Deletes safe consumers group for a project, removing access to accounts in the safe
   @Override
-  public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+  public void doDelete(HttpServletRequest request, HttpServletResponse response)
+	throws IOException, ServletException {
     String projectName = request.getParameter("projectName");
+    String vaultName = request.getParameter("vaultName");
+    String lobName = request.getParameter("lobName");
     String safeName = request.getParameter("safeName");
     String policyText = "- !delete\n  record: !group " + safeName + "/consumers";
     logger.log(Level.INFO, "Deleting safe consumers group with: " + policyText + " at policy branch: " + projectName);
@@ -61,4 +65,4 @@ public class ConjurSafePolicyServlet extends HttpServlet {
     response.getOutputStream().println(policyResult);
   }
 
-} // ConjurBasePolicyServlet
+} // ConjurSafePolicyServlet

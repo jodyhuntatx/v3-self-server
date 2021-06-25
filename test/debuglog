@@ -13,7 +13,7 @@ echo "CATALINA.$DATESTAMP.LOG =================================="
 tail -10 $TOMCAT_HOME/logs/catalina.$DATESTAMP.log
 echo
 echo "CATALINA.OUT =================================="
-cat $TOMCAT_HOME/logs/catalina.out
+tail -20 $TOMCAT_HOME/logs/catalina.out
 echo
 
 exit

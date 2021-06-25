@@ -2,8 +2,7 @@
 
 source ./cybrtest.config
 
-export ACC_REQ_ID=1;
-
+export accReqId=2
 export CURL="curl -s"
 export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
@@ -19,7 +18,7 @@ main() {
   conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjur/login")
   test "conjurlogin" "$conjurAuthnResponse"
 
-  provResponse=$($CURL -X POST "$BASE_URL/provision?accReqId=$ACC_REQ_ID")
+  provResponse=$($CURL -X DELETE "$BASE_URL/provision?accReqId=$accReqId")
   test "provision" "$provResponse"
 }
 

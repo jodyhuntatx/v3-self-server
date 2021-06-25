@@ -2,7 +2,7 @@ import mysql.connector
 from mysql.connector import Error
 
 class DBLayer:
-  dbConfig = {	'host': 'localhost',
+  dbConfig = {	'host': 'conjurmaster2.northcentralus.cloudapp.azure.com',
 		'database': 'appgovdb',
 		'user': 'root',
 		'password': 'Cyberark1'}

@@ -43,9 +43,10 @@ class AccessRequest:
 
   ######################################
   def submit(self, *args):
-    self.provision_approved_reqs()
-    sys.exit(0)
     self.write_all_to_db()
+    DBLayer.dbClose()
+    sys.exit(0)
+#    self.provision_approved_reqs()
 
   ##############################
   # Writes form input variables to MySQL database
@@ -54,7 +55,7 @@ class AccessRequest:
     accReqDbId = self.write_to_db(projectDbId)
     self.identityInfo.write_to_db(projectDbId, accReqDbId)
     self.accountInfo.write_to_db(projectDbId)
-    DBLayer.dbClose()
+    DBLayer.dbConn.commit()
 
   ##############################
   # Writes variables to MySQL database
@@ -64,8 +65,8 @@ class AccessRequest:
       ts = time.time()
       timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
 
+      # if dev environment, auto-approve request w/o waiting for review
       approved = 0
-      # if env == dev, approve request w/o waiting for approval
       if self.projectInfo.env.get() == 'dev':
         approved = 1
 
@@ -80,26 +81,34 @@ class AccessRequest:
 
       return accreqDbId
     except Error as e:
-      print("Error while connecting to MySQL", e)
+      print("AccessRequest:Error inserting access request", e)
 
   ##############################
   # Provision all approved access requests
   def provision_approved_reqs(self):
     print("starting provisioning...")
+    accessRequestIds = ""
     try:
       query = "SELECT id FROM accessrequests WHERE approved = 1 AND provisioned = 0"
       cursor = DBLayer.dbConn.cursor(buffered=True)
       cursor.execute(query)
       accessRequestIds = cursor.fetchall()
     except Error as e:
-      print("Error while connecting to MySQL", e)
+      print("AccessRequest:Error selecting id from accessrequests", e)
 
     print("Approved, unprovisioned IDs: ", accessRequestIds) 
 
     apiEndpoint = 'http://localhost:8080/cybr'  
-    pasSessionToken = requests.get(apiEndpoint + '/paslogin', auth=('Administrator', 'Cyberark1')) 
-    conjurApiKey = requests.get(apiEndpoint + '/conjurlogin', auth=('admin', 'CYberark11@@')) 
+    pasSessionToken = requests.get(apiEndpoint + '/pas/login', auth=('Administrator', 'Cyberark1')) 
+    conjurApiKey = requests.get(apiEndpoint + '/conjur/login', auth=('admin', 'CYberark11@@')) 
     for id in accessRequestIds:
       print("Provisioning accReqId: ", id[0]) 
       r = requests.post(url = apiEndpoint + "/provision?accReqId=" + str(id[0]), data = "")
       print("Provisioning response: ", r)
+      try:
+        query = "UPDATE accessrequests SET provisioned = 1 WHERE id = %s"
+        args = (id)
+        cursor.execute(query, args)
+        DBLayer.dbConn.commit()
+      except Error as e:
+        print("AccessRequest:Error updating provisioning status", e)

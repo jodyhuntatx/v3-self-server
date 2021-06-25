@@ -47,7 +47,8 @@ public class ConjurBasePolicyServlet extends HttpServlet {
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
     String projectName = request.getParameter("projectName");
-    String policyText = "- !delete\n  record: !policy " + projectName;
+    String adminName = request.getParameter("adminName");
+    String policyText = "- !delete\n  record: !host " + adminName + "\n- !delete\n  record: !policy " + projectName;
     logger.log(Level.INFO, "Deleting base policy with: " + policyText + " at root policy branch.");
     String policyResult = ConjurJava.loadPolicy("delete", "root", policyText);
     response.getOutputStream().println(policyResult);

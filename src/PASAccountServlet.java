@@ -18,9 +18,9 @@ import javax.servlet.http.HttpServletResponse;
 // GET = list accounts
 // POST = add account 
 // DELETE = delete account
-public class AccountServlet extends HttpServlet {
+public class PASAccountServlet extends HttpServlet {
     /** Logger */
-    private static final Logger logger = Logger.getLogger(AccountServlet.class.getName());
+    private static final Logger logger = Logger.getLogger(PASAccountServlet.class.getName());
 
   @Override
   public void doGet(HttpServletRequest request, HttpServletResponse response)

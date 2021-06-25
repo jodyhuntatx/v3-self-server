@@ -6,12 +6,21 @@
   metadata-complete="true">
 
   <servlet>
+    <servlet-name>ProvisioningServlet</servlet-name>
+    <servlet-class>ProvisioningServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ProvisioningServlet</servlet-name>
+    <url-pattern>/provision</url-pattern>
+  </servlet-mapping>
+
+  <servlet>
     <servlet-name>PASServlet</servlet-name>
     <servlet-class>PASServlet</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>PASServlet</servlet-name>
-    <url-pattern>/paslogin</url-pattern>
+    <url-pattern>/pas/login</url-pattern>
   </servlet-mapping>
 
   <filter>  
@@ -20,7 +29,7 @@
   </filter>  
   <filter-mapping>  
     <filter-name>PASFilter</filter-name>  
-    <url-pattern>/paslogin</url-pattern>  
+    <url-pattern>/pas/login</url-pattern>  
   </filter-mapping>  
 
   <servlet>
@@ -29,7 +38,7 @@
   </servlet>
   <servlet-mapping>
     <servlet-name>ConjurServlet</servlet-name>
-    <url-pattern>/conjurlogin</url-pattern>
+    <url-pattern>/conjur/login</url-pattern>
   </servlet-mapping>
 
   <filter>
@@ -38,25 +47,25 @@
   </filter>
   <filter-mapping>
     <filter-name>ConjurFilter</filter-name>
-    <url-pattern>/conjurlogin</url-pattern>
+    <url-pattern>/conjur/login</url-pattern>
   </filter-mapping>
 
   <servlet>
-    <servlet-name>SafeServlet</servlet-name>
-    <servlet-class>SafeServlet</servlet-class>
+    <servlet-name>PASSafeServlet</servlet-name>
+    <servlet-class>PASSafeServlet</servlet-class>
   </servlet>
   <servlet-mapping>
-    <servlet-name>SafeServlet</servlet-name>
-    <url-pattern>/safes</url-pattern>
+    <servlet-name>PASSafeServlet</servlet-name>
+    <url-pattern>/pas/safes</url-pattern>
   </servlet-mapping>
 
   <servlet>
-    <servlet-name>AccountServlet</servlet-name>
-    <servlet-class>AccountServlet</servlet-class>
+    <servlet-name>PASAccountServlet</servlet-name>
+    <servlet-class>PASAccountServlet</servlet-class>
   </servlet>
   <servlet-mapping>
-    <servlet-name>AccountServlet</servlet-name>
-    <url-pattern>/accounts</url-pattern>
+    <servlet-name>PASAccountServlet</servlet-name>
+    <url-pattern>/pas/accounts</url-pattern>
   </servlet-mapping>
 
   <servlet>
@@ -65,7 +74,7 @@
   </servlet>
   <servlet-mapping>
     <servlet-name>ConjurBasePolicyServlet</servlet-name>
-    <url-pattern>/conjurpolicies/basepolicy</url-pattern>
+    <url-pattern>/conjur/basepolicy</url-pattern>
   </servlet-mapping>
 
   <servlet>
@@ -74,7 +83,7 @@
   </servlet>
   <servlet-mapping>
     <servlet-name>ConjurSafePolicyServlet</servlet-name>
-    <url-pattern>/conjurpolicies/safepolicy</url-pattern>
+    <url-pattern>/conjur/safepolicy</url-pattern>
   </servlet-mapping>
 
   <servlet>
@@ -83,7 +92,7 @@
   </servlet>
   <servlet-mapping>
     <servlet-name>ConjurIdentityPolicyServlet</servlet-name>
-    <url-pattern>/conjurpolicies/identitypolicy</url-pattern>
+    <url-pattern>/conjur/identitypolicy</url-pattern>
   </servlet-mapping>
 
   <servlet>
@@ -92,16 +101,7 @@
   </servlet>
   <servlet-mapping>
     <servlet-name>ConjurAccessPolicyServlet</servlet-name>
-    <url-pattern>/conjurpolicies/accesspolicy</url-pattern>
-  </servlet-mapping>
-
-  <servlet>
-    <servlet-name>ProvisioningServlet</servlet-name>
-    <servlet-class>ProvisioningServlet</servlet-class>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>ProvisioningServlet</servlet-name>
-    <url-pattern>/provision</url-pattern>
+    <url-pattern>/conjur/accesspolicy</url-pattern>
   </servlet-mapping>
 
 </web-app>
