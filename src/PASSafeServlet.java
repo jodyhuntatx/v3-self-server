@@ -25,6 +25,11 @@ public class PASSafeServlet extends HttpServlet {
   public void doGet(HttpServletRequest request, HttpServletResponse response)
 	throws IOException, ServletException {
     response.getOutputStream().println(PASJava.listSafes());
+    String listSafeResponse = PASJava.listSafes();
+    response.getOutputStream().println("{"
+					+ "\"listSafesResponse\": "
+                                        + listSafeResponse
+					+ "}");
   } // list safes
 
   // +++++++++++++++++++++++++++++++++++++++++

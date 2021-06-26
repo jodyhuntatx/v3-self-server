@@ -1,11 +1,10 @@
 #!/bin/bash
-
-source ./cybrtest.config
+source ../test/cybrtest.config
 
 export CONJUR_LOG_LINES=3
 export ACCESS_LOG_LINES=10
-export TOMCAT_DATED_LOG_LINES=20
-export TOMCAT_SERVER_LOG_LINES=80
+export TOMCAT_DATED_LOG_LINES=0
+export TOMCAT_SERVER_LOG_LINES=70
 
 DATESTAMP=$(date +%Y-%m-%d)
 echo

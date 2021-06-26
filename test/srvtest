@@ -7,10 +7,17 @@ export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
 
 main() {
-  authnResponse=$($CURL --request POST --url "$BASE_URL/login?pasAdminName=$PAS_ADMIN_NAME&pasAdminPassword=$PAS_ADMIN_PASSWORD&conjurAdminName=$CONJUR_ADMIN_NAME&conjurAdminPassword=$CONJUR_ADMIN_PASSWORD")
-  test "login" "$authnResponse"
+  # Login as admin to PAS
+  PASauthnCreds=$(echo "$PAS_ADMIN_NAME:$PAS_ADMIN_PASSWORD" | base64)
+  pasAuthnResponse=$($CURL -H "Authorization: Basic $PASauthnCreds" -H "Content-Type: application/json" "$BASE_URL/pas/login")
+  test "paslogin" "$pasAuthnResponse"
 
-  safeAdd=$($CURL -X POST --url "$BASE_URL/safes?safeName=$PAS_SAFE_NAME&cpmName=$PAS_CPM_NAME")
+  safeList=$($CURL --url $BASE_URL/pas/safes)
+  test "listSafes" "$safeList"
+
+exit
+
+  safeAdd=$($CURL -X POST --url "$BASE_URL/pas/safes?safeName=$PAS_SAFE_NAME&cpmName=$PAS_CPM_NAME")
   test "addSafe" "$safeAdd"
 
 #  safeAdd=$($CURL -X POST --url "$BASE_URL/safes?safeName=$PAS_SAFE_NAME&cpmName=$PAS_CPM_NAME&lobName=$PAS_LOB_NAME&vaultName=$PAS_VAULT_NAME")
@@ -18,9 +25,6 @@ main() {
 
   safeUpdate=$($CURL -X PUT --url "$BASE_URL/safes?safeName=$PAS_SAFE_NAME&lobName=$PAS_LOB_NAME&vaultName=$PAS_VAULT_NAME")
   test "updateSafe" "$safeUpdate"
-
-#  safeList=$($CURL --url $BASE_URL/safes)
-#  test "listSafes" "$safeList"
 
   accountList=$($CURL --url "$BASE_URL/accounts?safeName=$PAS_SAFE_NAME")
   test "listAccounts" "$accountList"

@@ -29,9 +29,9 @@ class AccessRequest:
     identityFrame.grid(column=0, row=1, sticky=(N, W, E, S))
     self.identityInfo = IdentityInfo(identityFrame)
 
-    accountFrame = ttk.Frame(mainframe, padding="10 10 10 10", style='Cybr.TFrame')
-    accountFrame.grid(column=0, row=2, sticky=(N, W, E, S))
-    self.accountInfo = AccountInfo(accountFrame)
+#    accountFrame = ttk.Frame(mainframe, padding="10 10 10 10", style='Cybr.TFrame')
+#    accountFrame.grid(column=0, row=2, sticky=(N, W, E, S))
+#    self.accountInfo = AccountInfo(accountFrame)
 
     ttk.Button(parent, text="Submit", command=self.submit, style='Cybr.TButton').grid(column=3, row=3, sticky=E)
     parent.bind("<Return>", self.submit)
@@ -54,7 +54,7 @@ class AccessRequest:
     projectDbId = self.projectInfo.write_to_db()
     accReqDbId = self.write_to_db(projectDbId)
     self.identityInfo.write_to_db(projectDbId, accReqDbId)
-    self.accountInfo.write_to_db(projectDbId)
+#    self.accountInfo.write_to_db(projectDbId)
     DBLayer.dbConn.commit()
 
   ##############################
@@ -74,7 +74,7 @@ class AccessRequest:
       query = "INSERT IGNORE INTO accessrequests "									\
       		"(approved, project_id, datetime, environment, vault_name, safe_name, requestor, cpm_name, lob_name) "	\
                 "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-      args = (approved,projectDbId,timestamp,self.projectInfo.env.get(),'DemoVault',self.projectInfo.project.get(),self.projectInfo.requestor.get(),'PasswordManager','CICD')
+      args = (approved,projectDbId,timestamp,self.projectInfo.env.get(),self.projectInfo.vault.get(),self.projectInfo.safe.get(),self.projectInfo.requestor.get(),'PasswordManager','CICD')
       cursor.execute(query, args)
       accreqDbId = cursor.lastrowid;
       DBLayer.dbConn.commit()

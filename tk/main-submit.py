@@ -1,5 +1,5 @@
 from loginwin import *
-from accessrequest import *
+from accesssubmit import *
 
 root = Tk()
 root.protocol("WM_DELETE_WINDOW", sys.exit)

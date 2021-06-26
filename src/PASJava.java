@@ -174,21 +174,9 @@ public class PASJava {
 	String requestUrl = pasServerUrl + "/Safes";
 	String authHeader = pasSessionToken;
 
-        if(PASJava.DEBUG) {
-            System.out.println("====== PASJava.listSafes() ======");
-            System.out.println("requestUrl: " + requestUrl);
-            System.out.println("authHeader: " + authHeader);
-            System.out.println("===================================");
-            System.out.println("");
-        }
-
+        logger.log(Level.INFO, "PASJava.listSafes URL: " + requestUrl);
         String safeResponse = JavaREST.httpGet(requestUrl, authHeader);
-
-        if(PASJava.DEBUG) {
-            System.out.println("Raw safe listing:");
-            System.out.println(safeResponse);
-            System.out.println("");
-        }
+        logger.log(Level.INFO, "PASJava.listSafes response: " + safeResponse);
 
         return safeResponse;
  

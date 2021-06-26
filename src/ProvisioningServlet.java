@@ -52,17 +52,31 @@ public class ProvisioningServlet extends HttpServlet {
         throws ServletException, IOException {  
     String accReqId = request.getParameter("accReqId");
 
-    // These 4 variables are used multiple times
-    Connection conn = ProvisioningServlet.dbConn;
-    String querySql = "";
-    PreparedStatement prepStmt = null;
-    String requestUrl = "";
+    String safeResponse = createSafe(accReqId);
+//    String accountResponse = addAccounts(accReqId);
+    String basePolicyResponse = createBasePolicy(accReqId);
+    String safePolicyResponse = createSafePolicy(accReqId);
+    String identityPolicyResponse = createIdentityPolicy(accReqId);
+    String accessPolicyResponse = grantAccessPolicy(accReqId);
 
-    // Add a safe w/ Conjur synch policy
+    response.getOutputStream().println("{"
+					+ safeResponse + ","
+					+ basePolicyResponse + ","
+					+ safePolicyResponse + ","
+					+ identityPolicyResponse + ","
+					+ accessPolicyResponse + "}");
+//					+ accountResponse + ","
+  } // doPost
+  
+  // +++++++++++++++++++++++++++++++++++
+  // Add a safe w/ Conjur synch policy
+  private static String createSafe(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String safeResponse = "";
     try {
-      querySql = "SELECT safe_name, cpm_name, lob_name, vault_name FROM accessrequests WHERE id = ?";
-      prepStmt = conn.prepareStatement(querySql);
+      String querySql = "SELECT safe_name, cpm_name, lob_name, vault_name FROM accessrequests WHERE id = ?";
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) { 		// unique access request id guarantees only one row returned
@@ -70,7 +84,6 @@ public class ProvisioningServlet extends HttpServlet {
         String cpmName = rs.getString("cpm_name");
         String lobName = rs.getString("lob_name");
         String vaultName = rs.getString("vault_name");
-
         requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/safes"
   							+ "?safeName=" + safeName
                                 			+ "&cpmName=" + cpmName
@@ -82,14 +95,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return safeResponse;
+  }
 
-    // Add specified accounts to the safe
+  // +++++++++++++++++++++++++++++++++++
+  // Add specified accounts to the safe
+  private static String addAccounts(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String accountResponse = "";
-    querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
+    String querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
 		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
 		+ "WHERE pr.id = ca.project_id AND pr.id = ar.id AND ar.id = ?";
     try {
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while (rs.next()) {
@@ -113,14 +132,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return accountResponse;
+  } // addAccounts
 
-    // Create Conjur base policy for project, per CyberArk PS best-practices
+  // +++++++++++++++++++++++++++++++++++
+  // Create Conjur base policy for project, per CyberArk PS best-practices
+  private static String createBasePolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String basePolicyResponse = "";
     try {
-      querySql = "SELECT pr.name, pr.admin "
+      String querySql = "SELECT pr.name, pr.admin "
 		+ "FROM projects pr, accessrequests ar "
 		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -137,14 +162,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return basePolicyResponse;
+  } // createBasePolicy
 
-    // Create Conjur safe policy for project
+  // +++++++++++++++++++++++++++++++++++
+  // Create Conjur safe policy for project
+  private static String createSafePolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String safePolicyResponse = "";
     try {
-      querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
+      String querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
 		+ "FROM projects pr, accessrequests ar "
 		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -163,14 +194,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return safePolicyResponse;
+  }
 
-    // Create Conjur identity policy for project
+  // +++++++++++++++++++++++++++++++++++
+  // Create Conjur identity policy for project
+  private static String createIdentityPolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String identityPolicyResponse = "";
     try {
-      querySql =  "SELECT pr.name, appid.name "
+      String querySql =  "SELECT pr.name, appid.name "
 		+ "FROM projects pr, appidentities appid "
 		+ "WHERE appid.accreq_id = ? AND appid.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -185,14 +222,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return identityPolicyResponse;
+  }
 
-    // Grant safe/consumers group role to identity
+  // +++++++++++++++++++++++++++++++++++
+  // Grant safe/consumers group role to identity
+  private static String grantAccessPolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String accessPolicyResponse = "";
     try {
-      querySql = "SELECT pr.name, appid.name, ar.safe_name "
+      String querySql = "SELECT pr.name, appid.name, ar.safe_name "
 		+ "FROM projects pr, appidentities appid, accessrequests ar "
 		+ "WHERE ar.id = ? AND appid.accreq_id = ar.id AND ar.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -209,36 +252,44 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return accessPolicyResponse;
+  } //createAccessPolicy
 
-    response.getOutputStream().println("{"
-					+ safeResponse + ","
-					+ accountResponse + ","
-					+ basePolicyResponse + ","
-					+ safePolicyResponse + ","
-					+ identityPolicyResponse + ","
-					+ accessPolicyResponse + "}");
-  } // doPost
-  
-    // +++++++++++++++++++++++++++++++++++++++++
+  // +++++++++++++++++++++++++++++++++++++++++
   // Deletes safe consumers group for a project, removing access to accounts in the safe
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response)
 	throws IOException, ServletException {
     String accReqId = request.getParameter("accReqId");
 
-    // These 4 variables are used multiple times
-    Connection conn = ProvisioningServlet.dbConn;
-    String querySql = "";
-    PreparedStatement prepStmt = null;
-    String requestUrl = "";
+    String accessPolicyResponse = revokeAccessPolicy(accReqId);
+    String identityPolicyResponse = deleteIdentityPolicy(accReqId);
+    String safePolicyResponse = deleteSafePolicy(accReqId);
+    String basePolicyResponse = deleteBasePolicy(accReqId);
+//    String accountResponse = deleteAccounts(accReqId);
+//    String safeResponse = deleteSafes(accReqId);
 
-    // Revoke safe/consumers group role for identity
+    response.getOutputStream().println("{"
+					+ basePolicyResponse + ","
+					+ safePolicyResponse + ","
+					+ identityPolicyResponse + ","
+					+ accessPolicyResponse
+					+ "}");
+//					+ safeResponse + ","
+//					+ accountResponse + ","
+  } //doDelete
+
+  // ++++++++++++++++++++++++++++++++
+  // Revoke safe/consumers group role for identity
+  private static String revokeAccessPolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String accessPolicyResponse = "";
     try {
-      querySql = "SELECT pr.name, appid.name, ar.safe_name "
+      String querySql = "SELECT pr.name, appid.name, ar.safe_name "
 		+ "FROM projects pr, appidentities appid, accessrequests ar "
 		+ "WHERE ar.id = ? AND appid.accreq_id = ar.id AND ar.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -255,14 +306,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return accessPolicyResponse;
+  } // revokeAccessPolicy
 
-    // Delete Conjur identity(s) for project
+  // +++++++++++++++++++++++++++++++++
+  // Delete Conjur identity(s) for project
+  private static String deleteIdentityPolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String identityPolicyResponse = "";
     try {
-      querySql =  "SELECT pr.name, appid.name "
+      String querySql =  "SELECT pr.name, appid.name "
 		+ "FROM projects pr, appidentities appid "
 		+ "WHERE appid.accreq_id = ? AND appid.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -277,14 +334,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return identityPolicyResponse;
+  } // deleteIdentityPolicy
 
-    // Delete Conjur safe policy(s) for project
+  // +++++++++++++++++++++++++++++++++
+  // Delete Conjur safe policy(s) for project
+  private static String deleteSafePolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String safePolicyResponse = "";
     try {
-      querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
+      String querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
 		+ "FROM projects pr, accessrequests ar "
 		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -303,14 +366,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return safePolicyResponse;
+  } // deleteSafePolicy
 
-    // Delete Conjur base policy for project
+  // ++++++++++++++++++++++++++++++++++
+  // Delete Conjur base policy for project
+  private static String deleteBasePolicy(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String basePolicyResponse = "";
     try {
-      querySql = "SELECT pr.name, pr.admin "
+      String querySql = "SELECT pr.name, pr.admin "
 		+ "FROM projects pr, accessrequests ar "
 		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
@@ -327,14 +396,20 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return basePolicyResponse;
+  } // deleteBasePolicy
 
-    // Delete accounts from project safe(s)
+  // +++++++++++++++++++++++++++++++++++
+  // Delete accounts from project safe(s)
+  private static String deleteAccounts(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String accountResponse = "";
-    querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
+    try {
+      String querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
 		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
 		+ "WHERE pr.id = ca.project_id AND pr.id = ar.id AND ar.id = ?";
-    try {
-      prepStmt = conn.prepareStatement(querySql);
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while (rs.next()) {
@@ -358,12 +433,18 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+    return accountResponse;
+  } // deleteAccounts
 
-    // Delete safe and Conjur synch policy
+  // ++++++++++++++++++++++++++++++
+  // Delete safe and Conjur synch policy
+  private static String deleteSafe(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
     String safeResponse = "";
     try {
-      querySql = "SELECT safe_name, cpm_name, lob_name, vault_name FROM accessrequests WHERE id = ?";
-      prepStmt = conn.prepareStatement(querySql);
+      String querySql = "SELECT safe_name, cpm_name, lob_name, vault_name FROM accessrequests WHERE id = ?";
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) { 		// unique access request id guarantees only one row returned
@@ -383,14 +464,7 @@ public class ProvisioningServlet extends HttpServlet {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-
-    response.getOutputStream().println("{"
-					+ safeResponse + ","
-					+ accountResponse + ","
-					+ basePolicyResponse + ","
-					+ safePolicyResponse + ","
-					+ identityPolicyResponse + ","
-					+ accessPolicyResponse + "}");
-  } //doDelete
+    return safeResponse;
+  } // deleteSafes
 
 } // ProvisioningServlet

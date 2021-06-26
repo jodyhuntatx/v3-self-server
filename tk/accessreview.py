@@ -24,7 +24,7 @@ class AccessReview:
     accreqLabel.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
 
     # cols must correspond to fields in SELECT statements for all treeviews
-    self.cols=('RequestId','Project','DateTime','Environment','Safe','AppId','Account','Target')
+    self.cols=('RequestId','Project','DateTime','Environment','Safe','AppId')
     self.unapprTree = None
     self.unprovTree = None
     self.provTree = None
@@ -72,17 +72,22 @@ class AccessReview:
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT accreq.id, proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name " \
-		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
-		"WHERE NOT accreq.approved AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "	\
-		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
+      query = "SELECT accreq.id, proj.name, accreq.datetime, " \
+		"accreq.environment, accreq.safe_name, appid.name " \
+	      "FROM " \
+		"projects proj, " \
+		"accessrequests accreq, " \
+		"appidentities appid " \
+	      "WHERE NOT accreq.approved " \
+		"AND accreq.project_id = proj.id " \
+		"AND appid.project_id = proj.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
       print("buildUnapprovedTree: Error selecting unapproved access requests.", e)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0,0,0]
+    maxwidths = [0,0,0,0,0,0]
     for req in accessRequests:
       for i in range(len(self.cols)):
         if len(str(req[i])) > maxwidths[i]:
@@ -148,18 +153,25 @@ class AccessReview:
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT accreq.id, proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name " \
-		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
-		"WHERE accreq.approved AND NOT accreq.provisioned AND NOT accreq.deprovisioned "		\
-		"AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "				\
-		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
+      query = "SELECT accreq.id, proj.name, accreq.datetime, " \
+		"accreq.environment, accreq.safe_name, appid.name " \
+		"FROM "					\
+		" projects proj, "			\
+		" accessrequests accreq, "		\
+		" appidentities appid "			\
+		"WHERE "				\
+		" accreq.approved "			\
+		" AND NOT accreq.provisioned "		\
+		" AND NOT accreq.deprovisioned "	\
+		" AND accreq.project_id = proj.id "	\
+		" AND appid.project_id = proj.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
       print("buildApprovedTree: Error selecting approved access requests", e)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0,0,0]
+    maxwidths = [0,0,0,0,0,0]
     for req in accessRequests:
       for i in range(len(self.cols)):
         if len(str(req[i])) > maxwidths[i]:
@@ -226,18 +238,24 @@ class AccessReview:
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT accreq.id, proj.name, accreq.datetime, accreq.environment, accreq.safe_name, appid.name, cybracct.name, cybracct.db_name "	\
-		"FROM projects proj, accessrequests accreq, appidentities appid, cybraccounts cybracct "	\
-		"WHERE accreq.provisioned AND NOT accreq.deprovisioned "					\
-		"AND accreq.project_id = proj.id AND appid.accreq_id = accreq.id "				\
-		"AND appid.project_id = proj.id AND cybracct.project_id = proj.id"
+      query = "SELECT accreq.id, proj.name, accreq.datetime, " \
+		"accreq.environment, accreq.safe_name, appid.name " \
+              "FROM " \
+                "projects proj, " \
+                "accessrequests accreq, " \
+                "appidentities appid " \
+              "WHERE accreq.approved " \
+		"AND accreq.provisioned " \
+		"AND NOT accreq.deprovisioned " \
+                "AND accreq.project_id = proj.id " \
+                "AND appid.project_id = proj.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
       print("Error while connecting to MySQL", e)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0,0,0]
+    maxwidths = [0,0,0,0,0,0]
     for req in accessRequests:
       for i in range(len(self.cols)):
         if len(str(req[i])) > maxwidths[i]:
@@ -301,6 +319,7 @@ class AccessReview:
 ######################################
   def refresh(self, *args):
     print("Refreshing frames...")
+    DBLayer.dbConn.commit()
     self.buildUnapprovedTree(self.unapprFrame)
     self.buildUnprovisionedTree(self.unprovFrame)
     self.buildProvisionedTree(self.provFrame) 
