@@ -82,6 +82,8 @@ class AccessReview:
 		"AND appid.accreq_id = accreq.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
+      DBLayer.dbConn.commit()
+      cursor.close()
     except Error as e:
       print("buildUnapprovedTree: Error selecting unapproved access requests.", e)
 
@@ -134,6 +136,7 @@ class AccessReview:
       cursor = DBLayer.dbConn.cursor(buffered=True)
       cursor.execute("""UPDATE accessrequests SET approved=1 WHERE id=%s""", (approvedReqId,))
       DBLayer.dbConn.commit()
+      cursor.close()
     except Error as e:
       print("approve: Error updating accessrequest", e)
 
@@ -165,6 +168,8 @@ class AccessReview:
 		" AND appid.accreq_id = accreq.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
+      DBLayer.dbConn.commit()
+      cursor.close()
     except Error as e:
       print("buildUnprovisionedTree: Error selecting approved access requests", e)
 
@@ -213,9 +218,11 @@ class AccessReview:
       return
 
     # make REST call to provision access request from DB    
-    apiEndpoint = 'http://localhost:8080/cybr'
-    pasSessionToken = requests.get(apiEndpoint + '/pas/login', auth=('Administrator', 'Cyberark1'))
-    conjurApiKey = requests.get(apiEndpoint + '/conjur/login', auth=('admin', 'CYberark11@@'))
+    apiEndpoint = config.cybr["apiEndpoint"]
+    pasSessionToken = requests.get(apiEndpoint + '/pas/login',
+				auth=(config.cybr["pasAdminUsername"], config.cybr["pasAdminPassword"]))
+    conjurApiKey = requests.get(apiEndpoint + '/conjur/login',
+				auth=(config.cybr["conjurAdminUsername"], config.cybr["conjurAdminPassword"]))
     r = requests.post(url = apiEndpoint + "/provision?accReqId=" + provisionReqId, data = "")
 
     # update provisioned status of selected access request 
@@ -223,6 +230,7 @@ class AccessReview:
       cursor = DBLayer.dbConn.cursor(buffered=True)
       cursor.execute("""UPDATE accessrequests SET provisioned=1 WHERE id=%s""", (provisionReqId,))
       DBLayer.dbConn.commit()
+      cursor.close()
     except Error as e:
       print("provision: Error updating accessrequest provisioned status", e)
 
@@ -246,6 +254,8 @@ class AccessReview:
 		"AND appid.accreq_id = accreq.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
+      DBLayer.dbConn.commit()
+      cursor.close()
     except Error as e:
       print("Error while connecting to MySQL", e)
 
@@ -303,6 +313,7 @@ class AccessReview:
       cursor = DBLayer.dbConn.cursor(buffered=True)
       cursor.execute("""UPDATE accessrequests SET revoked=1 WHERE id=%s""", (revokeReqId,))
       DBLayer.dbConn.commit()
+      cursor.close()
     except Error as e:
       print("revokeAccess: Error updating accessrequest revoked status", e)
 
@@ -310,7 +321,6 @@ class AccessReview:
 
 ######################################
   def refresh(self, *args):
-    DBLayer.dbConn.commit()
     self.buildUnapprovedTree(self.unapprFrame)
     self.buildUnprovisionedTree(self.unprovFrame)
     self.buildProvisionedTree(self.provFrame) 

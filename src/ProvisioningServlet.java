@@ -91,6 +91,7 @@ public class ProvisioningServlet extends HttpServlet {
                                 			+ "&vaultName=" + vaultName;
         logger.log(Level.INFO, "Add safe: " + requestUrl);
         safeResponse = JavaREST.httpPost(requestUrl, "", "");
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -128,6 +129,7 @@ public class ProvisioningServlet extends HttpServlet {
                                 + "&secretValue=" + "RAndo498578x";
         logger.log(Level.INFO, "Add account: " + requestUrl);
 	accountResponse = accountResponse + JavaREST.httpPost(requestUrl, "", "") + ",";
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -158,6 +160,7 @@ public class ProvisioningServlet extends HttpServlet {
 
         logger.log(Level.INFO, "Add base project policy: " + requestUrl);
         basePolicyResponse = JavaREST.httpPost(requestUrl, "", "");
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -190,6 +193,7 @@ public class ProvisioningServlet extends HttpServlet {
    			                               + "&safeName=" + safeName;
         logger.log(Level.INFO, "Add safe project policy: " + requestUrl);
         safePolicyResponse = JavaREST.httpPost(requestUrl, "", "");
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -218,6 +222,7 @@ public class ProvisioningServlet extends HttpServlet {
    			                               + "&identityName=" + idName;
         logger.log(Level.INFO, "Add identity policy: " + requestUrl);
         identityPolicyResponse = identityPolicyResponse + JavaREST.httpPost(requestUrl, "", "");
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -248,6 +253,7 @@ public class ProvisioningServlet extends HttpServlet {
    			                             + "&groupRoleName=" + safeName + "/consumers";
         logger.log(Level.INFO, "Add access policy: " + requestUrl);
         accessPolicyResponse = accessPolicyResponse + JavaREST.httpPost(requestUrl, "", "");
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -302,6 +308,7 @@ public class ProvisioningServlet extends HttpServlet {
    			                             + "&groupRoleName=" + safeName + "/consumers";
         logger.log(Level.INFO, "Delete access policy: " + requestUrl);
         accessPolicyResponse = accessPolicyResponse + Integer.toString(JavaREST.httpDelete(requestUrl, ""));
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -330,6 +337,7 @@ public class ProvisioningServlet extends HttpServlet {
    			                               + "&identityName=" + idName;
         logger.log(Level.INFO, "Delete identity policy: " + requestUrl);
         identityPolicyResponse = identityPolicyResponse + Integer.toString(JavaREST.httpDelete(requestUrl, ""));
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -362,6 +370,7 @@ public class ProvisioningServlet extends HttpServlet {
    			                               + "&safeName=" + safeName;
         logger.log(Level.INFO, "Add safe project policy: " + requestUrl);
         safePolicyResponse = Integer.toString(JavaREST.httpDelete(requestUrl, ""));
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -392,6 +401,7 @@ public class ProvisioningServlet extends HttpServlet {
 
         logger.log(Level.INFO, "Add base project policy: " + requestUrl);
         basePolicyResponse = Integer.toString(JavaREST.httpDelete(requestUrl, ""));
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -429,6 +439,7 @@ public class ProvisioningServlet extends HttpServlet {
                                 + "&secretValue=" + "RAndo498578x";
         logger.log(Level.INFO, "Add account: " + requestUrl);
 	accountResponse = accountResponse + Integer.toString(JavaREST.httpDelete(requestUrl, "")) + ",";
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -460,6 +471,7 @@ public class ProvisioningServlet extends HttpServlet {
                                 			+ "&vaultName=" + vaultName;
         logger.log(Level.INFO, "Add safe: " + requestUrl);
         safeResponse = Integer.toString(JavaREST.httpDelete(requestUrl, ""));
+	prepStmt.close();
       }
     } catch (SQLException e) {
       e.printStackTrace();

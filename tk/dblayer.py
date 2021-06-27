@@ -1,13 +1,9 @@
 import mysql.connector
 from mysql.connector import Error
+import config
 
 class DBLayer:
-  dbConfig = {	'host': 'conjurmaster2.northcentralus.cloudapp.azure.com',
-		'database': 'appgovdb',
-		'user': 'root',
-		'password': 'Cyberark1'}
-
-  dbConn = mysql.connector.connect(**dbConfig)
+  dbConn = mysql.connector.connect(**config.db)
 
   def __init__(self):
     try:
