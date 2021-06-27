@@ -263,18 +263,18 @@ public class ProvisioningServlet extends HttpServlet {
     String accReqId = request.getParameter("accReqId");
 
     String accessPolicyResponse = revokeAccessPolicy(accReqId);
-    String identityPolicyResponse = deleteIdentityPolicy(accReqId);
-    String safePolicyResponse = deleteSafePolicy(accReqId);
-    String basePolicyResponse = deleteBasePolicy(accReqId);
+//    String identityPolicyResponse = deleteIdentityPolicy(accReqId);
+//    String safePolicyResponse = deleteSafePolicy(accReqId);
+//    String basePolicyResponse = deleteBasePolicy(accReqId);
 //    String accountResponse = deleteAccounts(accReqId);
 //    String safeResponse = deleteSafes(accReqId);
 
     response.getOutputStream().println("{"
-					+ basePolicyResponse + ","
-					+ safePolicyResponse + ","
-					+ identityPolicyResponse + ","
 					+ accessPolicyResponse
 					+ "}");
+//					+ basePolicyResponse + ","
+//					+ safePolicyResponse + ","
+//					+ identityPolicyResponse + ","
 //					+ safeResponse + ","
 //					+ accountResponse + ","
   } //doDelete

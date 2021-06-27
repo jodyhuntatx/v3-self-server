@@ -24,7 +24,7 @@ class AccessReview:
     accreqLabel.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
 
     # cols must correspond to fields in SELECT statements for all treeviews
-    self.cols=('RequestId','Project','DateTime','Environment','Safe','AppId')
+    self.cols=('Project','AppId','Safe','Environment','DateTime','RequestId')
     self.unapprTree = None
     self.unprovTree = None
     self.provTree = None
@@ -72,15 +72,14 @@ class AccessReview:
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT accreq.id, proj.name, accreq.datetime, " \
-		"accreq.environment, accreq.safe_name, appid.name " \
+      query = "SELECT proj.name, appid.name, accreq.safe_name, accreq.environment, accreq.datetime, accreq.id " \
 	      "FROM " \
 		"projects proj, " \
 		"accessrequests accreq, " \
 		"appidentities appid " \
 	      "WHERE NOT accreq.approved " \
 		"AND accreq.project_id = proj.id " \
-		"AND appid.project_id = proj.id "
+		"AND appid.accreq_id = accreq.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
@@ -153,8 +152,7 @@ class AccessReview:
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT accreq.id, proj.name, accreq.datetime, " \
-		"accreq.environment, accreq.safe_name, appid.name " \
+      query = "SELECT proj.name, appid.name, accreq.safe_name, accreq.environment, accreq.datetime, accreq.id " \
 		"FROM "					\
 		" projects proj, "			\
 		" accessrequests accreq, "		\
@@ -162,13 +160,13 @@ class AccessReview:
 		"WHERE "				\
 		" accreq.approved "			\
 		" AND NOT accreq.provisioned "		\
-		" AND NOT accreq.deprovisioned "	\
-		" AND accreq.project_id = proj.id "	\
-		" AND appid.project_id = proj.id "
+		" AND NOT accreq.revoked"		\
+		" AND accreq.project_id = proj.id " 	\
+		" AND appid.accreq_id = accreq.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
-      print("buildApprovedTree: Error selecting approved access requests", e)
+      print("buildUnprovisionedTree: Error selecting approved access requests", e)
 
     # get max column widths for each column
     maxwidths = [0,0,0,0,0,0]
@@ -218,9 +216,7 @@ class AccessReview:
     apiEndpoint = 'http://localhost:8080/cybr'
     pasSessionToken = requests.get(apiEndpoint + '/pas/login', auth=('Administrator', 'Cyberark1'))
     conjurApiKey = requests.get(apiEndpoint + '/conjur/login', auth=('admin', 'CYberark11@@'))
-    print("Provisioning accReqId: ", provisionReqId)
     r = requests.post(url = apiEndpoint + "/provision?accReqId=" + provisionReqId, data = "")
-    print("Provisioning response: ", r)
 
     # update provisioned status of selected access request 
     try:
@@ -238,17 +234,16 @@ class AccessReview:
     # get access request data from db
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT accreq.id, proj.name, accreq.datetime, " \
-		"accreq.environment, accreq.safe_name, appid.name " \
+      query = "SELECT proj.name, appid.name, accreq.safe_name, accreq.environment, accreq.datetime, accreq.id " \
               "FROM " \
                 "projects proj, " \
                 "accessrequests accreq, " \
                 "appidentities appid " \
               "WHERE accreq.approved " \
 		"AND accreq.provisioned " \
-		"AND NOT accreq.deprovisioned " \
-                "AND accreq.project_id = proj.id " \
-                "AND appid.project_id = proj.id "
+		"AND NOT accreq.revoked " \
+		"AND accreq.project_id = proj.id " \
+		"AND appid.accreq_id = accreq.id "
       cursor.execute(query)
       accessRequests = cursor.fetchall()
     except Error as e:
@@ -275,9 +270,9 @@ class AccessReview:
       self.provTree.insert('','end',value=req)
 
     #++++++++++++++++++++++++++++++++++++++
-    # setup popup menu for deprovisioning
+    # setup popup menu for revoking access
     self.provTree.popup_menu = tk.Menu(self.provTree, tearoff=0)
-    self.provTree.popup_menu.add_command(label="Deprovision", command=self.deprovision)
+    self.provTree.popup_menu.add_command(label="Revoke Access", command=self.revokeAccess)
     self.provTree.popup_menu.add_separator()
     def do_popup(event):
       # display the popup menu
@@ -292,33 +287,29 @@ class AccessReview:
     self.provTree.grid(column=0, row=1, sticky=(N, W, E, S),columnspan=3)
 
 ######################################
-  def deprovision(self):
+  def revokeAccess(self):
     try:
-      deprovisionReqId = self.provTree.popup_menu.selection['RequestId']
+      revokeReqId= self.provTree.popup_menu.selection['RequestId']
     except LookupError:
       return
 
-    # make REST call to deprovision access request from DB
+    # make REST call to revoke access request 
     apiEndpoint = 'http://localhost:8080/cybr'
     pasSessionToken = requests.get(apiEndpoint + '/pas/login', auth=('Administrator', 'Cyberark1'))
     conjurApiKey = requests.get(apiEndpoint + '/conjur/login', auth=('admin', 'CYberark11@@'))
-    print("Deprovisioning accReqId: ", deprovisionReqId)
-    r = requests.delete(url = apiEndpoint + "/provision?accReqId=" + deprovisionReqId, data = "")
-    print("Deprovisioning response: ", r)
-
-    # update provisioned status of selected access request
+    r = requests.delete(url = apiEndpoint + "/provision?accReqId=" + revokeReqId, data = "")
+    # update revoked status of selected access request
     try:
       cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute("""UPDATE accessrequests SET deprovisioned=1 WHERE id=%s""", (deprovisionReqId,))
+      cursor.execute("""UPDATE accessrequests SET revoked=1 WHERE id=%s""", (revokeReqId,))
       DBLayer.dbConn.commit()
     except Error as e:
-      print("deprovision: Error updating accessrequest deprovisioned status", e)
+      print("revokeAccess: Error updating accessrequest revoked status", e)
 
-    self.buildProvisionedTree(self.provFrame)           # rebuild provisioned tree w/o provisioned access request
+    self.buildProvisionedTree(self.provFrame)           # rebuild provisioned tree w/o revoked access request
 
 ######################################
   def refresh(self, *args):
-    print("Refreshing frames...")
     DBLayer.dbConn.commit()
     self.buildUnapprovedTree(self.unapprFrame)
     self.buildUnprovisionedTree(self.unprovFrame)

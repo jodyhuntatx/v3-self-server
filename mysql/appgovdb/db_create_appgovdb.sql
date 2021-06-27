@@ -19,7 +19,7 @@ CREATE TABLE accessrequests (
   datetime DATETIME NOT NULL,
   approved BOOLEAN DEFAULT FALSE,
   provisioned BOOLEAN DEFAULT FALSE,
-  deprovisioned BOOLEAN DEFAULT FALSE,
+  revoked BOOLEAN DEFAULT FALSE,
   environment VARCHAR(30) NOT NULL,
   vault_name VARCHAR(30) NOT NULL,
   safe_name VARCHAR(30) NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE appidentities (
   FOREIGN KEY (accreq_id) REFERENCES accessrequests(id),
   name VARCHAR(30) NOT NULL,
   auth_method VARCHAR(30),
-  UNIQUE INDEX(project_id, name)
+  INDEX(project_id, accreq_id, name)
 ) engine=InnoDB;
 
 # CyberArk Account table
