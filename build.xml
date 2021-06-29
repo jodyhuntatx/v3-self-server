@@ -1,6 +1,7 @@
 <project name="CybrPlugin" basedir="." default="compile">
     <property name="src.dir"		value="src"/>
     <property name="lib.dir"		value="lib"/>
+    <property name="deps.dir"		value="dependencies"/>
     <property name="build.dir"		value="classes"/>
     <property name="main-class"		value="CybrDriver"/>
     <property name="tomcat-base" value="/usr/local/Cellar/tomcat@9/9.0.46/libexec"/>
@@ -8,8 +9,13 @@
 
     <path id="classpath">
         <fileset dir="${lib.dir}" includes="*.jar"/>
+        <fileset dir="${deps.dir}" includes="*.jar"/>
 	<fileset dir="${tomcat-base}/lib" includes="*.jar"/>
     </path>
+
+    <target name="init">
+	<copy file="${deps.dir}/mysql-connector-java-8.0.25.jar" todir="${tomcat-base}/lib"/>
+    </target>
 
     <target name="clean">
         <delete dir="${build.dir}"/>
@@ -43,6 +49,9 @@
 	<copy todir="${cybr-base}/lib">
 	  <fileset dir="${lib.dir}">
 	    <exclude name="CybrDriver.jar"/>
+	  </fileset>
+	  <fileset dir="${deps.dir}">
+	    <exclude name="mysql-connector-java-8.0.25.jar"/>
 	  </fileset>
 	</copy>
 

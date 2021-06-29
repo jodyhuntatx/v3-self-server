@@ -18,6 +18,7 @@ CREATE TABLE accessrequests (
   FOREIGN KEY (project_id) REFERENCES projects(id),
   datetime DATETIME NOT NULL,
   approved BOOLEAN DEFAULT FALSE,
+  rejected BOOLEAN DEFAULT FALSE,
   provisioned BOOLEAN DEFAULT FALSE,
   revoked BOOLEAN DEFAULT FALSE,
   environment VARCHAR(30) NOT NULL,
@@ -56,3 +57,5 @@ CREATE TABLE cybraccounts (
   db_name VARCHAR(30),
   UNIQUE INDEX(project_id, name)
 ) engine=InnoDB;
+
+

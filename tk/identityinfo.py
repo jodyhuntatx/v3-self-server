@@ -12,21 +12,15 @@ class IdentityInfo:
     identityFrame.columnconfigure(0, weight=1)
     identityFrame.rowconfigure(0, weight=1)
 
-    self.identity1 = StringVar()
-    identity1_entry = ttk.Entry(identityFrame, width=20, textvariable=self.identity1)
-    identity1_entry.grid(column=1, row=1, sticky=(W, E))
-    ttk.Label(identityFrame, text="Identity 1").grid(column=0, row=1, sticky=W)
+    self.identity = StringVar()
+    identity_entry = ttk.Entry(identityFrame, width=20, textvariable=self.identity)
+    identity_entry.grid(column=1, row=1, sticky=(W, E))
+    ttk.Label(identityFrame, text="Conjur Identity (host) Name").grid(column=0, row=1, sticky=W)
 
-    self.identity2 = StringVar()
-    identity2_entry = ttk.Entry(identityFrame, width=20, textvariable=self.identity2)
-    identity2_entry.grid(column=1, row=2, sticky=(W, E))
-    ttk.Label(identityFrame, text="Identity 2").grid(column=0, row=2, sticky=W)
-    
   def print(self, *args):
     try:
       print("\"identities\": [")
-      print("  {\"identity\": \"!host "+self.identity1.get()+"\"},")
-      print("  {\"identity\": \"!host "+self.identity2.get()+"\"}")
+      print("  {\"identity\": \"!host "+self.identity.get()+"\"},")
       print("]")
     except ValueError:
       pass
@@ -42,14 +36,8 @@ class IdentityInfo:
       query = "INSERT IGNORE INTO appidentities "		\
                 "(project_id, accreq_id, name, auth_method) "	\
                 "VALUES(%s,%s,%s,%s)"
-      args = (projectDbId, accReqDbId, self.identity1.get(), 'auth_method')
+      args = (projectDbId, accReqDbId, self.identity.get(), 'auth_method')
       cursor.execute(query, args)
-      if self.identity2.get():
-        args = (projectDbId, accReqDbId, self.identity2.get(), 'auth_method')
-        cursor.execute(query, args)
-
       DBLayer.dbConn.commit()
-
     except Error as e:
       print("MySQL Error:", e)
-

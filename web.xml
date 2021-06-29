@@ -104,4 +104,13 @@
     <url-pattern>/conjur/accesspolicy</url-pattern>
   </servlet-mapping>
 
+  <servlet>
+    <servlet-name>appgovdb</servlet-name>
+    <servlet-class>AppGovDbServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>appgovdb</servlet-name>
+    <url-pattern>/appgovdb</url-pattern>
+  </servlet-mapping>
+
 </web-app>

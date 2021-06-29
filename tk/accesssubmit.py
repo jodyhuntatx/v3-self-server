@@ -5,15 +5,13 @@ import datetime
 import subprocess
 from tkinter import *
 from tkinter import ttk
-from projectinfo import *
-from identityinfo import *
-from accountinfo import *
+import requests
 
 import mysql.connector
 from mysql.connector import Error
 from dblayer import *
 
-# MySQL best-practice to avoid blocking transactions at server:
+# MySQL best-practice to avoid dangling connections at server:
 # - Create connection
 # - Create cursor
 # - Create Query string
@@ -22,7 +20,9 @@ from dblayer import *
 # - Close the cursor
 # - Close the connection
 
-import requests
+from projectinfo import *
+from identityinfo import *
+from accountinfo import *
 import config
 
 class AccessRequest:
@@ -44,7 +44,6 @@ class AccessRequest:
 #    self.accountInfo = AccountInfo(accountFrame)
 
     ttk.Button(parent, text="Submit", command=self.submit, style='Cybr.TButton').grid(column=3, row=3, sticky=E)
-    parent.bind("<Return>", self.submit)
 
     self.projectInfo.project_entry.focus()
 
@@ -53,6 +52,7 @@ class AccessRequest:
 
   ######################################
   def submit(self, *args):
+    DBLayer.dbConnect()			# refresh DB connection to avoid timeouts
     self.write_all_to_db()
     DBLayer.dbClose()
     sys.exit(0)
@@ -84,7 +84,7 @@ class AccessRequest:
       query = "INSERT IGNORE INTO accessrequests "									\
       		"(approved, project_id, datetime, environment, vault_name, safe_name, requestor, cpm_name, lob_name) "	\
                 "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-      args = (approved,projectDbId,timestamp,self.projectInfo.env.get(),config.cybr["vaultName"],self.projectInfo.safe.get(),self.projectInfo.requestor.get(),'PasswordManager','CICD')
+      args = (approved,projectDbId,timestamp,self.projectInfo.env.get(),config.cybr["pasVaultName"],self.projectInfo.safe.get(),self.projectInfo.requestor.get(),config.cybr["pasCpmName"],config.cybr["pasLobName"])
       cursor.execute(query, args)
       accreqDbId = cursor.lastrowid;
       cursor.close()
@@ -94,33 +94,3 @@ class AccessRequest:
     except Error as e:
       print("AccessRequest:Error inserting access request", e)
 
-  ##############################
-  # Provision all approved access requests
-  def provision_approved_reqs(self):
-    print("starting provisioning...")
-    accessRequestIds = ""
-    try:
-      query = "SELECT id FROM accessrequests WHERE approved = 1 AND provisioned = 0"
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute(query)
-      accessRequestIds = cursor.fetchall()
-    except Error as e:
-      print("AccessRequest:Error selecting id from accessrequests", e)
-
-    apiEndpoint = config.cybr["apiEndpoint"]
-    pasSessionToken = requests.get(apiEndpoint + '/pas/login',
-				auth=(config.cybr["pasAdminUsername"], config.cybr["pasAdminPassword"]))
-    conjurApiKey = requests.get(apiEndpoint + '/conjur/login',
-				auth=(config.cybr["conjurAdminUsername"], config.cybr["conjurAdminPassword"]))
-    for id in accessRequestIds:
-      print("Provisioning accReqId: ", id[0]) 
-      r = requests.post(url = apiEndpoint + "/provision?accReqId=" + str(id[0]), data = "")
-      print("Provisioning response: ", r)
-      try:
-        query = "UPDATE accessrequests SET provisioned = 1 WHERE id = %s"
-        args = (id)
-        cursor.execute(query, args)
-        cursor.close()
-        DBLayer.dbConn.commit()
-      except Error as e:
-        print("AccessRequest:Error updating provisioning status", e)

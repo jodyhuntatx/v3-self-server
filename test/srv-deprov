@@ -25,6 +25,8 @@ main() {
   authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/identitypolicy?projectName=$PROJECT_NAME&identityName=$CONJUR_IDENTITY")
   test "deleteConjuridentity" "$authnResponse"
 
+exit
+
   # Delete Conjur safe policy
   authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/safepolicy?projectName=$PROJECT_NAME&vaultName=$PAS_VAULT_NAME&lobName=$PAS_LOB_NAME&safeName=$PAS_SAFE_NAME")
   test "deleteConjurSafePolicy" "$authnResponse"

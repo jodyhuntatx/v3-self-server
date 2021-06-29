@@ -17,6 +17,9 @@ class DBLayer:
     except Error as error:
         print(error)
 
+  def dbConnect():
+    DBLayer.dbConn = mysql.connector.connect(**config.db)
+
   def dbClose():
       if DBLayer.dbConn.is_connected():
         DBLayer.dbConn.close()
