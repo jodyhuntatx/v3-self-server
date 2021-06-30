@@ -52,8 +52,9 @@ public class ProvisioningServlet extends HttpServlet {
         throws ServletException, IOException {  
     String accReqId = request.getParameter("accReqId");
 
-    String safeResponse = createSafe(accReqId);
-//    String accountResponse = addAccounts(accReqId);
+    String safeResponse = createSafe(accReqId);			// creates safe if not exists - sets up Conjur sync policy
+//    String accountResponse = addAccounts(accReqId);		// account creation handled elsewhere
+
     String basePolicyResponse = createBasePolicy(accReqId);
     String safePolicyResponse = createSafePolicy(accReqId);
     String identityPolicyResponse = createIdentityPolicy(accReqId);
@@ -98,44 +99,6 @@ public class ProvisioningServlet extends HttpServlet {
     }
     return safeResponse;
   }
-
-  // +++++++++++++++++++++++++++++++++++
-  // Add specified accounts to the safe
-  private static String addAccounts(String accReqId) {
-    Connection conn = ProvisioningServlet.dbConn;
-    String requestUrl = "";
-    String accountResponse = "";
-    String querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
-		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
-		+ "WHERE pr.id = ca.project_id AND pr.id = ar.id AND ar.id = ?";
-    try {
-      PreparedStatement prepStmt = conn.prepareStatement(querySql);
-      prepStmt.setString(1, accReqId);
-      ResultSet rs = prepStmt.executeQuery();
-      while (rs.next()) {
-        String safeName = rs.getString("ar.safe_name");
-        String accountName = rs.getString("ca.name");
-        String platformId = rs.getString("ca.platform_id");
-        String accountAddress = rs.getString("ca.address");
-        String accountUsername = rs.getString("ca.username");
-        String accountSecretType = rs.getString("ca.secret_type");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/accounts"
-				+ "?safeName=" + safeName
-                                + "&accountName=" + accountName
-                                + "&platformId=" + platformId
-                                + "&address=" + accountAddress
-                                + "&userName=" + accountUsername
-                                + "&secretType=" + accountSecretType
-                                + "&secretValue=" + "RAndo498578x";
-        logger.log(Level.INFO, "Add account: " + requestUrl);
-	accountResponse = accountResponse + JavaREST.httpPost(requestUrl, "", "") + ",";
-	prepStmt.close();
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-    return accountResponse;
-  } // addAccounts
 
   // +++++++++++++++++++++++++++++++++++
   // Create Conjur base policy for project, per CyberArk PS best-practices
@@ -263,6 +226,9 @@ public class ProvisioningServlet extends HttpServlet {
 
   // +++++++++++++++++++++++++++++++++++++++++
   // Deletes safe consumers group for a project, removing access to accounts in the safe
+  // This is not a true inverse of provisioning as it does not actually delete anything.
+  // It became evident that knowing exactly what to delete is a complex problem.
+  // Those functions are preserved should they prove useful in the future.
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response)
 	throws IOException, ServletException {
@@ -478,5 +444,45 @@ public class ProvisioningServlet extends HttpServlet {
     }
     return safeResponse;
   } // deleteSafes
+
+  // +++++++++++++++++++++++++++++++++++
+  // DEPRECATED - preserved for reference
+  // Automated account creation is not supported
+  // Add specified accounts to the safe 
+  private static String addAccounts(String accReqId) {
+    Connection conn = ProvisioningServlet.dbConn;
+    String requestUrl = "";
+    String accountResponse = "";
+    String querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
+		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
+		+ "WHERE pr.id = ca.project_id AND pr.id = ar.id AND ar.id = ?";
+    try {
+      PreparedStatement prepStmt = conn.prepareStatement(querySql);
+      prepStmt.setString(1, accReqId);
+      ResultSet rs = prepStmt.executeQuery();
+      while (rs.next()) {
+        String safeName = rs.getString("ar.safe_name");
+        String accountName = rs.getString("ca.name");
+        String platformId = rs.getString("ca.platform_id");
+        String accountAddress = rs.getString("ca.address");
+        String accountUsername = rs.getString("ca.username");
+        String accountSecretType = rs.getString("ca.secret_type");
+        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/accounts"
+				+ "?safeName=" + safeName
+                                + "&accountName=" + accountName
+                                + "&platformId=" + platformId
+                                + "&address=" + accountAddress
+                                + "&userName=" + accountUsername
+                                + "&secretType=" + accountSecretType
+                                + "&secretValue=" + "RAndo498578x";
+        logger.log(Level.INFO, "Add account: " + requestUrl);
+	accountResponse = accountResponse + JavaREST.httpPost(requestUrl, "", "") + ",";
+	prepStmt.close();
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return accountResponse;
+  } // addAccounts
 
 } // ProvisioningServlet

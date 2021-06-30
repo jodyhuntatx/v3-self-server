@@ -47,15 +47,14 @@ CREATE TABLE cybraccounts (
   id INT(4) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   project_id INT(4) UNSIGNED NOT NULL,
   FOREIGN KEY (project_id) REFERENCES projects(id),
+  accreq_id INT(4) UNSIGNED NOT NULL,
+  FOREIGN KEY (accreq_id) REFERENCES accessrequests(id),
   name VARCHAR(30) NOT NULL,
   platform_id VARCHAR(30),
-  system_type VARCHAR(30),
   secret_type VARCHAR(30),
   username VARCHAR(30),
-  address VARCHAR(30),
-  port VARCHAR(30),
-  db_name VARCHAR(30),
-  UNIQUE INDEX(project_id, name)
+  address VARCHAR(80),
+  resource_type VARCHAR(30),
+  resource_name VARCHAR(30),
+  INDEX(project_id, accreq_id)
 ) engine=InnoDB;
-
-

@@ -7,6 +7,11 @@ export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
 
 main() {
+  # Login as admin to PAS
+  PASauthnCreds=$(echo "$PAS_ADMIN_NAME:$PAS_ADMIN_PASSWORD" | base64)
+  pasAuthnResponse=$($CURL -H "Authorization: Basic $PASauthnCreds" -H "Content-Type: application/json" "$BASE_URL/pas/login")
+  test "paslogin" "$pasAuthnResponse"
+
   jsonTest="{\"projectName\":\"$PROJECT_NAME\",\"requestor\":\"jhunt\", \"approved\": 1, \"environment\":\"dev\", \"pasVaultName\":\"$PAS_VAULT_NAME\", \"pasSafeName\":\"$PAS_SAFE_NAME\", \"pasCpmName\":\"$PAS_CPM_NAME\", \"pasLobName\":\"$PAS_LOB_NAME\", \"appIdName\":\"$CONJUR_IDENTITY\", \"appAuthnMethod\":\"authn-k8s\"}"
 
 #  appDbResponse=$(

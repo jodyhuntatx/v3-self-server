@@ -1,9 +1,5 @@
 #!/bin/bash
 source ../mysql.config
-if [[ $# != 1 ]]; then
-  echo "Usage: $0 <sql-script-filename>"
-  exit -1
-fi
-cat $1 \
+cat db_load_petstore.sql \
 | $DOCKER exec -i $MYSQL_SERVER mysql -h $MYSQL_HOSTNAME -u root --password=$MYSQL_ROOT_PASSWORD
 

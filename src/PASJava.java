@@ -46,7 +46,7 @@ public class PASJava {
     private static final Logger logger = Logger.getLogger(PASJava.class.getName());
 
 
-     public static Boolean DEBUG=false; // set to true for debug output
+     public static Boolean DEBUG=true; // set to true for debug output
 
 
 /*****************************************************************
