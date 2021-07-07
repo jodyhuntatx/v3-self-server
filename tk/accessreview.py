@@ -7,11 +7,11 @@ from tkinter import *
 from tkinter import ttk
 import tkinter as tk
 
-import mysql.connector
-from mysql.connector import Error
-from dblayer import *
-
 import requests
+import config
+import json
+
+import dblayer
 
 class AccessReview:
 
@@ -23,7 +23,7 @@ class AccessReview:
     accreqLabel = ttk.Label(parent,text='Access Requests',font=('Helvetica bold',14),anchor='center')
     accreqLabel.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
 
-    # cols must correspond to fields in SELECT statements for all treeviews
+    # cols must correspond to fields returned from calls to AppGovDB.get()
     self.cols=('Project','AppId','Safe','Environment','DateTime','RequestId')
     self.unapprTree = None
     self.unprovTree = None
@@ -69,33 +69,21 @@ class AccessReview:
 ######################################
   # Build Unapproved access request treeview
   def buildUnapprovedTree(self,parent):
-    # get access request data from db
-    try:
-      DBLayer.dbConnect()	# refresh DB connection to avoid timeouts
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT proj.name, appid.name, accreq.safe_name, accreq.environment, accreq.datetime, accreq.id " \
-	      "FROM " \
-		"projects proj, " \
-		"accessrequests accreq, " \
-		"appidentities appid " \
-	      "WHERE " \
-		"NOT accreq.approved " \
-		"AND NOT accreq.rejected " \
-		"AND accreq.project_id = proj.id " \
-		"AND appid.accreq_id = accreq.id "
-      cursor.execute(query)
-      accessRequests = cursor.fetchall()
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("buildUnapprovedTree: Error selecting unapproved access requests.", e)
+    # get unapproved access request data 
+    apiEndpoint = config.cybr["apiEndpoint"]
+    accReqJson = json.loads(requests.get(apiEndpoint + '/appgovdb?filter=unapproved').content)
+    unapprList = accReqJson["unapproved"]
+    unapprValues = []
+    if unapprList:
+      reqKeyList = tuple(unapprList[0])   # get list of keys in json record
+      for req in unapprList:              # for each key in each unapproved access request
+        reqValues = []
+        for key in reqKeyList:
+          reqValues.append(req[key])      # append just values
+        unapprValues.append(reqValues)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0]
-    for req in accessRequests:
-      for i in range(len(self.cols)):
-        if len(str(req[i])) > maxwidths[i]:
-          maxwidths[i] = len(str(req[i]))
+    maxwidths = [20,20,20,20,20,20]
 
     if self.unapprTree is not None:
       self.unapprTree.destroy()
@@ -107,7 +95,7 @@ class AccessReview:
       self.unapprTree.column(self.cols[c], width=maxwidths[c], anchor='center')
       self.unapprTree.heading(self.cols[c],text=self.cols[c])
 
-    for req in accessRequests:
+    for req in unapprValues:
       self.unapprTree.insert('','end',value=req)
 
     #++++++++++++++++++++++++++++++++++++++
@@ -175,33 +163,20 @@ class AccessReview:
 ######################################
   def buildUnprovisionedTree(self,parent):
     # get access request data from db
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT proj.name, appid.name, accreq.safe_name, accreq.environment, accreq.datetime, accreq.id " \
-		"FROM "					\
-		" projects proj, "			\
-		" accessrequests accreq, "		\
-		" appidentities appid "			\
-		"WHERE "				\
-		" accreq.approved "			\
-		" AND NOT accreq.rejected"		\
-		" AND NOT accreq.provisioned "		\
-		" AND NOT accreq.revoked"		\
-		" AND accreq.project_id = proj.id " 	\
-		" AND appid.accreq_id = accreq.id "
-      cursor.execute(query)
-      accessRequests = cursor.fetchall()
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("buildUnprovisionedTree: Error selecting approved access requests", e)
+    apiEndpoint = config.cybr["apiEndpoint"]
+    accReqJson = json.loads(requests.get(apiEndpoint + '/appgovdb?filter=unprovisioned').content)
+    unprovList = accReqJson["unprovisioned"]
+    unprovValues = []
+    if unprovList:
+      reqKeyList = tuple(unprovList[0])	# get list of keys in json record
+      for req in unprovList:		# for each key in each unprovisioned access request
+        reqValues = []
+        for key in reqKeyList:
+          reqValues.append(req[key])	# append just values
+        unprovValues.append(reqValues)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0]
-    for req in accessRequests:
-      for i in range(len(self.cols)):
-        if len(str(req[i])) > maxwidths[i]:
-          maxwidths[i] = len(str(req[i]))
+    maxwidths = [20,20,20,20,20,20]
 
     if self.unprovTree is not None:
       self.unprovTree.destroy()
@@ -213,7 +188,7 @@ class AccessReview:
       self.unprovTree.column(self.cols[c], width=maxwidths[c], anchor='center')
       self.unprovTree.heading(self.cols[c],text=self.cols[c])
 
-    for req in accessRequests:
+    for req in unprovValues:
       self.unprovTree.insert('','end',value=req)
 
     #++++++++++++++++++++++++++++++++++++++
@@ -282,32 +257,20 @@ class AccessReview:
 ######################################
   def buildProvisionedTree(self,parent):
     # get access request data from db
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      query = "SELECT proj.name, appid.name, accreq.safe_name, accreq.environment, accreq.datetime, accreq.id " \
-              "FROM " \
-                "projects proj, " \
-                "accessrequests accreq, " \
-                "appidentities appid " \
-              "WHERE " \
-		"accreq.approved " \
-		"AND accreq.provisioned " \
-		"AND NOT accreq.revoked " \
-		"AND accreq.project_id = proj.id " \
-		"AND appid.accreq_id = accreq.id "
-      cursor.execute(query)
-      accessRequests = cursor.fetchall()
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("Error while connecting to MySQL", e)
+    apiEndpoint = config.cybr["apiEndpoint"]
+    accReqJson = json.loads(requests.get(apiEndpoint + '/appgovdb?filter=provisioned').content)
+    provList = accReqJson["provisioned"]
+    provValues = []
+    if provList:
+      reqKeyList = tuple(provList[0])   # get list of keys in json record
+      for req in provList:              # for each key in each provisioned access request
+        reqValues = []
+        for key in reqKeyList:
+          reqValues.append(req[key])      # append just values
+        provValues.append(reqValues)
 
     # get max column widths for each column
-    maxwidths = [0,0,0,0,0,0]
-    for req in accessRequests:
-      for i in range(len(self.cols)):
-        if len(str(req[i])) > maxwidths[i]:
-          maxwidths[i] = len(str(req[i]))
+    maxwidths = [20,20,20,20,20,20]
 
     if self.provTree is not None:
       self.provTree.destroy()
@@ -319,7 +282,7 @@ class AccessReview:
       self.provTree.column(self.cols[c], width=maxwidths[c], anchor='center')
       self.provTree.heading(self.cols[c],text=self.cols[c])
 
-    for req in accessRequests:
+    for req in provValues:
       self.provTree.insert('','end',value=req)
 
     #++++++++++++++++++++++++++++++++++++++

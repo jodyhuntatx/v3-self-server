@@ -44,7 +44,7 @@
 	</jar>
     </target>
 
-    <target name="publish" depends="compile">
+    <target name="publish" depends="clean,compile">
 	<mkdir dir="${cybr-base}/lib"/>
 	<copy todir="${cybr-base}/lib">
 	  <fileset dir="${lib.dir}">
