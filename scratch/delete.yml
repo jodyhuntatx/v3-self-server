@@ -1,26 +1,17 @@
 - !delete
-  record: !policy Project1
+  record: !policy xxx
 
 - !delete
-  record: !policy Project2
+  record: !host xxx-admin
 
 - !delete
-  record: !host jhunt
+  record: !group xxx/yyy/consumers
 
 - !delete
-  record: !policy DemoVault/CICD/Project1/delegation
+  record: !policy DemoVault/CICD/yyy/delegation
 
 - !delete
-  record: !policy DemoVault/CICD/Project2/delegation
+  record: !group DemoVault/CICD/yyy-admins
 
 - !delete
-  record: !group DemoVault/CICD/Project1-admins
-
-- !delete
-  record: !group DemoVault/CICD/Project2-admins
-
-- !delete
-  record: !policy DemoVault/CICD/Project1
-
-- !delete
-  record: !policy DemoVault/CICD/Project2
+  record: !policy DemoVault/CICD/yyy

@@ -24,6 +24,7 @@ public class JavaREST {
    *
    * String httpGet(url,authhdr)
    * String httpPost(url,body,authhdr)
+   * String httpPut(url,body,authhdr)
    * String httpPatch(url,body,authhdr)
    * String httpDelete(url,authhdr)
    *
@@ -143,6 +144,67 @@ public class JavaREST {
 	return output;
 
      } // httpPost()
+
+
+    // ===============================================================
+    // String httpPut() -
+    //
+    public static String httpPut(String url_string, String bodyContent, String auth_header) {
+	String output = "";
+	try {
+	    URL url = new URL(url_string);
+	    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+	    conn.setDoOutput(true);
+	    conn.setRequestMethod("PUT");
+	    conn.setRequestProperty("Content-Type", "application/json");
+	    conn.setRequestProperty("Authorization", auth_header);
+
+	    OutputStream os = conn.getOutputStream();
+	    os.write(bodyContent.getBytes());
+	    os.flush();
+
+	    switch(conn.getResponseCode()) {
+		case 200 :
+		case 201 :
+		    break;
+
+		default :
+		    output = null;
+		    throw new RuntimeException("Failed : HTTP error code : "
+					+ conn.getResponseCode());
+	    }
+
+	    BufferedReader br = new BufferedReader(new InputStreamReader(
+				(conn.getInputStream())));
+
+            output = br.readLine();
+            String tmp;
+            while ((tmp = br.readLine()) != null) {
+                output = output + System.lineSeparator() + tmp;
+            }
+
+	    conn.disconnect();
+
+	} catch (RuntimeException e) {
+	  if(JavaREST.DEBUG) {
+	    e.printStackTrace();
+	  }
+	} catch (MalformedURLException e) {
+	    e.printStackTrace();
+	} catch (IOException e) {
+	    e.printStackTrace();
+	}
+
+	if(JavaREST.DEBUG) {
+	   System.out.println("JavaREST.httpPut() ========");
+	   System.out.println("Response:");
+	   System.out.println(output);
+	   System.out.println("============================");
+	}
+
+	return output;
+
+     } // httpPut()
 
 
     // ===============================================================

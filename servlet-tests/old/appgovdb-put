@@ -2,9 +2,7 @@
 
 source ./cybrtest.config
 
-export ACC_REQ_ID=1;
-
-export CURL="curl -s"
+export CURL="curl"
 export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
 
@@ -14,13 +12,9 @@ main() {
   pasAuthnResponse=$($CURL -H "Authorization: Basic $PASauthnCreds" -H "Content-Type: application/json" "$BASE_URL/pas/login")
   test "paslogin" "$pasAuthnResponse"
 
-  # Login as admin to Conjur
-  ConjurAuthnCreds=$(echo "$CONJUR_ADMIN_NAME:$CONJUR_ADMIN_PASSWORD" | base64)
-  conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjur/login")
-  test "conjurlogin" "$conjurAuthnResponse"
+  appDbResponse=$($CURL -X PUT -H "Content-Type: application/json" --data "$jsonTest" "$BASE_URL/appgovdb?accReqId=2&status=provisioned")
+  test "appDbUpdate" "$appDbResponse"
 
-  provResponse=$($CURL -X POST "$BASE_URL/provision?accReqId=$ACC_REQ_ID")
-  test "provision" "$provResponse"
 }
 
 ###################################

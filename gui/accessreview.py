@@ -11,8 +11,6 @@ import requests
 import config
 import json
 
-import dblayer
-
 class AccessReview:
 
 ######################################
@@ -89,8 +87,11 @@ class AccessReview:
       self.unapprTree.destroy()
 
     self.unapprTree = ttk.Treeview(parent, height=5, columns=self.cols)
-    self.unapprTree['show'] = 'headings'
+    self.unapprScrollbar = Scrollbar(self.unapprTree, orient=VERTICAL, command=self.unapprTree.yview)
+    self.unapprTree.configure(yscrollcommand=self.unapprScrollbar.set)
+    self.unapprScrollbar.grid(row=1, column=7, sticky='ns')
 
+    self.unapprTree['show'] = 'headings'
     for c in range(len(self.cols)):
       self.unapprTree.column(self.cols[c], width=maxwidths[c], anchor='center')
       self.unapprTree.heading(self.cols[c],text=self.cols[c])
@@ -119,18 +120,13 @@ class AccessReview:
 ######################################
   def approve(self):
     try:
-      approvedReqId = self.unapprTree.popup_menu.selection['RequestId']
+      selectedReqId = self.unapprTree.popup_menu.selection['RequestId']
     except LookupError:
       return
 
     # update approval status of selected access request 
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute("""UPDATE accessrequests SET approved=1 WHERE id=%s""", (approvedReqId,))
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("approve: Error updating accessrequest", e)
+    apiEndpoint = config.cybr["apiEndpoint"] + '/appgovdb?accReqId=' + selectedReqId + '&status=approved'
+    accStatusChangeResponse = requests.put(apiEndpoint).content
 
     self.buildUnapprovedTree(self.unapprFrame)		# rebuild unapproved tree w/o approved access request
     self.buildUnprovisionedTree(self.unprovFrame)	# rebuild unprovisioned tree w/ approved access request
@@ -138,18 +134,13 @@ class AccessReview:
 ######################################
   def rejectSubmitted(self):
     try:
-      approvedReqId = self.unapprTree.popup_menu.selection['RequestId']
+      selectedReqId = self.unapprTree.popup_menu.selection['RequestId']
     except LookupError:
       return
 
     # update rejected status of selected access request
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute("""UPDATE accessrequests SET rejected=1 WHERE id=%s""", (approvedReqId,))
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("reject: Error updating accessrequest", e)
+    apiEndpoint = config.cybr["apiEndpoint"] + '/appgovdb?accReqId=' + selectedReqId + '&status=rejected'
+    accStatusChangeResponse = requests.put(apiEndpoint).content
 
     self.buildUnapprovedTree(self.unapprFrame)          # rebuild unapproved tree w/o rejected access request
 
@@ -212,26 +203,12 @@ class AccessReview:
 ######################################
   def provision(self):
     try:
-      provisionReqId = self.unprovTree.popup_menu.selection['RequestId']
+      selectedReqId = self.unprovTree.popup_menu.selection['RequestId']
     except LookupError:
       return
 
     # make REST call to provision access request from DB
-    apiEndpoint = config.cybr["apiEndpoint"]
-    pasSessionToken = requests.get(apiEndpoint + '/pas/login',
-                                auth=(config.cybr["pasAdminUsername"], config.cybr["pasAdminPassword"]))
-    conjurApiKey = requests.get(apiEndpoint + '/conjur/login',
-                                auth=(config.cybr["conjurAdminUsername"], config.cybr["conjurAdminPassword"]))
-    r = requests.post(url = apiEndpoint + "/provision?accReqId=" + provisionReqId, data = "")
-
-    # update provisioned status of selected access request
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute("""UPDATE accessrequests SET provisioned=1 WHERE id=%s""", (provisionReqId,))
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("provision: Error updating accessrequest provisioned status", e)
+    r = requests.post(url = config.cybr["apiEndpoint"] + "/provision?accReqId=" + selectedReqId, data = "")
 
     self.buildUnprovisionedTree(self.unprovFrame)       # rebuild unprovisioned tree w/o approved access request
     self.buildProvisionedTree(self.provFrame)           # rebuild provisioned tree w/ provisioned access request
@@ -239,18 +216,13 @@ class AccessReview:
 ######################################
   def rejectApproved(self):
     try:
-      provisionReqId = self.unprovTree.popup_menu.selection['RequestId']
+      selectedReqId = self.unprovTree.popup_menu.selection['RequestId']
     except LookupError:
       return
 
-    # update provisioned status of selected access request 
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute("""UPDATE accessrequests SET rejected=1 WHERE id=%s""", (provisionReqId,))
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("provision: Error updating accessrequest provisioned status", e)
+    # update rejected status of selected access request 
+    apiEndpoint = config.cybr["apiEndpoint"] + '/appgovdb?accReqId=' + selectedReqId + '&status=rejected'
+    accStatusChangeResponse = requests.patch(apiEndpoint).content
 
     self.buildUnprovisionedTree(self.unprovFrame)	# rebuild unprovisioned tree w/o rejected access request
 
@@ -305,25 +277,12 @@ class AccessReview:
 ######################################
   def revokeAccess(self):
     try:
-      revokeReqId= self.provTree.popup_menu.selection['RequestId']
+      selectedReqId= self.provTree.popup_menu.selection['RequestId']
     except LookupError:
       return
 
-    # make REST call to revoke access request 
-    apiEndpoint = config.cybr["apiEndpoint"]
-    pasSessionToken = requests.get(apiEndpoint + '/pas/login',
-				auth=(config.cybr["pasAdminUsername"], config.cybr["pasAdminPassword"]))
-    conjurApiKey = requests.get(apiEndpoint + '/conjur/login',
-				auth=(config.cybr["conjurAdminUsername"], config.cybr["conjurAdminPassword"]))
-    r = requests.delete(url = apiEndpoint + "/provision?accReqId=" + revokeReqId, data = "")
-    # update revoked status of selected access request
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-      cursor.execute("""UPDATE accessrequests SET revoked=1 WHERE id=%s""", (revokeReqId,))
-      DBLayer.dbConn.commit()
-      cursor.close()
-    except Error as e:
-      print("revokeAccess: Error updating accessrequest revoked status", e)
+    # revoke access request 
+    r = requests.delete(url = config.cybr["apiEndpoint"] + "/provision?accReqId=" + selectedReqId, data = "")
 
     self.buildProvisionedTree(self.provFrame)           # rebuild provisioned tree w/o revoked access request
 
@@ -335,5 +294,4 @@ class AccessReview:
 
 ######################################
   def exit(self, *args):
-    DBLayer.dbClose()
     sys.exit(0)

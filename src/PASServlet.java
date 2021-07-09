@@ -19,6 +19,7 @@ import java.security.cert.X509Certificate;
 import java.security.NoSuchAlgorithmException;
 import java.security.KeyManagementException;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -38,8 +39,13 @@ public class PASServlet extends HttpServlet {
   // Initialize connection to PAS
   @Override
   public void init() {
-    String pasIp = "192.168.2.163";
-    PASJava.initConnection( pasIp );
+    try {
+      InputStream inputStream = getServletContext().getResourceAsStream(Config.propFileName);
+      Config.loadConfigValues(inputStream);
+    } catch (IOException e) {
+      System.out.println("Exception: " + e);
+    }
+    PASJava.initConnection(Config.pasIpAddress);
 
     // turn off all cert validation - FOR DEMO ONLY
     disableSSL(); 

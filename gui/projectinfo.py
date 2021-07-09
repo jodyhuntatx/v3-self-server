@@ -2,9 +2,6 @@ from tkinter import *
 from tkinter import ttk
 import requests
 from requests.auth import HTTPBasicAuth
-import mysql.connector
-from mysql.connector import Error
-from dblayer import *
 
 class ProjectInfo:
 
@@ -37,23 +34,3 @@ class ProjectInfo:
     envDev.grid(column=2, row=5, sticky=(W, E))
     envTest.grid(column=2, row=6, sticky=(W, E))
     envProd.grid(column=2, row=7, sticky=(W, E))
-
-##############################
-# Writes variables to MySQL database 
-  def write_to_db(self, *args):
-    try:
-      query = "INSERT IGNORE INTO projects(name,admin) "	\
-		"VALUES(%s,%s)";
-      args = (self.project.get(),self.project.get()+"-admin");
-      cursor = DBLayer.dbConn.cursor()
-      cursor.execute(query, args)
-      DBLayer.dbConn.commit()
-
-      # Get project ID for use as foreign key
-      query = "SELECT id FROM projects where name = %s"
-      args = (self.project.get(),)  # trailing comma forces tuple type
-      cursor.execute(query, args)
-      row = cursor.fetchone()   # unique index on name
-      return row[0]
-    except Error as e:
-      print("Error while connecting to MySQL", e)

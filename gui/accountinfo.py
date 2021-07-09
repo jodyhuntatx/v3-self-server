@@ -1,9 +1,6 @@
 from tkinter import *
 from tkinter import ttk
 import json
-import mysql.connector
-from mysql.connector import Error
-from dblayer import *
 
 class AccountInfo:
 
@@ -59,20 +56,4 @@ class AccountInfo:
   def print(self):
       print("\"accountRequests\": ")
       print(json.dumps(self.tview.selection(), indent=2))
-
-##############################
-# Writes variables to MySQL database
-  def write_to_db(self, projectDbId):
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-
-      query = "INSERT IGNORE INTO cybraccounts "                                       \
-                "(project_id, name, platform_id, system_type, secret_type, username, address, port, db_name) "    \
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)";
-      args = (projectDbId, 'MySQL-Dev', 'MySQL', 'Database', 'Password', 'javauser1', 'conjur-master-mac', '3306', 'petclinic')
-      cursor.execute(query, args)
-
-      DBLayer.dbConn.commit()
-    except Error as e:
-      print("MySQL Error:", e)
 

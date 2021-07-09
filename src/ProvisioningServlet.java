@@ -1,8 +1,20 @@
 /*
  * Defines REST endpoints to:
- *  - Provision an access request
- *  - Deprovision an access request
- */
+ *  - Provision an access request, includes creating empty safe & Conjur policies
+ *  - Deprovision (revoke) an access request, only includes revoking access to safe
+
+  Help on how to write a servlet that accepts json input payloads:
+   https://stackoverflow.com/questions/3831680/httpservletrequest-get-json-post-data
+
+ MySQL best-practice to avoid dangling connections at server:
+  - Create connection
+  - Create cursor/prepared statement
+  - Create Query string
+  - Execute the query
+  - Commit the query
+  - Close cursor/prepared statement
+  - Close the connection
+*/
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -12,9 +24,11 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.Random;
 import java.sql.*;
 
@@ -22,27 +36,20 @@ import java.sql.*;
 public class ProvisioningServlet extends HttpServlet {
     /** Logger */
     private static final Logger logger = Logger.getLogger(ProvisioningServlet.class.getName());
-    private static String DB_URL = "";
-    private static String DB_USER = "";
-    private static String DB_PASSWORD = "";
-    private static String CYBR_BASE_URL="";
     private static Connection dbConn = null;
 
   // +++++++++++++++++++++++++++++++++++++++++
-  // Initialize connection to database
+  // Initialize config object from properties file
   @Override
   public void init() {
-    ProvisioningServlet.DB_URL = "jdbc:mysql://conjurmaster2.northcentralus.cloudapp.azure.com/appgovdb?autoReconnect=true";
-    ProvisioningServlet.DB_USER = "root";
-    ProvisioningServlet.DB_PASSWORD = "Cyberark1";
-    ProvisioningServlet.CYBR_BASE_URL="http://localhost:8080/cybr";
     try {
-      ProvisioningServlet.dbConn = DriverManager.getConnection(ProvisioningServlet.DB_URL,
-								ProvisioningServlet.DB_USER,
-								ProvisioningServlet.DB_PASSWORD);
-    } catch (SQLException e) {
-      e.printStackTrace();
+      InputStream inputStream = getServletContext().getResourceAsStream(Config.propFileName);
+      Config.loadConfigValues(inputStream);
+    } catch (IOException e) {
+      System.out.println("Exception: " + e);
     }
+    PASJava.initConnection(Config.pasIpAddress);
+    ConjurJava.initConnection(Config.conjurUrl,Config.conjurAccount);
   }
 
   // +++++++++++++++++++++++++++++++++++++++++
@@ -52,44 +59,67 @@ public class ProvisioningServlet extends HttpServlet {
         throws ServletException, IOException {  
     String accReqId = request.getParameter("accReqId");
 
-    String safeResponse = createSafe(accReqId);			// creates safe if not exists - sets up Conjur sync policy
-//    String accountResponse = addAccounts(accReqId);		// account creation handled elsewhere
+    String pasToken = PASJava.logon(Config.pasAdminUser, Config.pasAdminPassword);
+    String conjurToken = ConjurJava.authnLogin(Config.conjurAdminUser, Config.conjurAdminPassword);
+    System.out.println("Conjur token: " + conjurToken);
+    if ( Objects.isNull(pasToken) || Objects.isNull(conjurToken) ) {
+      throw new ServletException("Error authenticating, pasToken: "+pasToken+", conjurToken: "+conjurToken);
+    }
+    try {
+      ProvisioningServlet.dbConn = DriverManager.getConnection(Config.appGovDbUrl,
+								Config.appGovDbUser,
+								Config.appGovDbPassword);
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
 
+    String safeResponse = createSafe(accReqId);	// creates empty safe if not exists 
+						// also sets up Conjur sync policy
     String basePolicyResponse = createBasePolicy(accReqId);
     String safePolicyResponse = createSafePolicy(accReqId);
     String identityPolicyResponse = createIdentityPolicy(accReqId);
     String accessPolicyResponse = grantAccessPolicy(accReqId);
+
+    // mark accessrequest provisioned
+    String requestUrl = Config.selfServeBaseUrl+ "/appgovdb?accReqId="+ accReqId
+					+ "&status=provisioned";
+    String markedProvisionedResponse = JavaREST.httpPut(requestUrl, "", "");
 
     response.getOutputStream().println("{"
 					+ safeResponse + ","
 					+ basePolicyResponse + ","
 					+ safePolicyResponse + ","
 					+ identityPolicyResponse + ","
-					+ accessPolicyResponse + "}");
-//					+ accountResponse + ","
+					+ accessPolicyResponse + ","
+					+ markedProvisionedResponse + "}");
+
   } // doPost
   
   // +++++++++++++++++++++++++++++++++++
   // Add a safe w/ Conjur synch policy
   private static String createSafe(String accReqId) {
+    System.out.println("starting createSafe with accReqId: " + accReqId);
     Connection conn = ProvisioningServlet.dbConn;
     String requestUrl = "";
     String safeResponse = "";
     try {
-      String querySql = "SELECT safe_name, cpm_name, lob_name, vault_name FROM accessrequests WHERE id = ?";
+      String querySql = "SELECT sf.name, sf.cpm_name, sf.vault_name, ar.lob_name "
+			+ " FROM accessrequests ar, safes sf "
+			+ " WHERE ar.id = ? AND ar.safe_id = sf.id";
+      System.out.println("executing query: " + querySql + " with accReqId: " + accReqId);
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) { 		// unique access request id guarantees only one row returned
-        String safeName = rs.getString("safe_name");
-        String cpmName = rs.getString("cpm_name");
-        String lobName = rs.getString("lob_name");
-        String vaultName = rs.getString("vault_name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/safes"
-  							+ "?safeName=" + safeName
-                                			+ "&cpmName=" + cpmName
-                                			+ "&lobName=" + lobName
-                                			+ "&vaultName=" + vaultName;
+        String vaultName = rs.getString("sf.vault_name");
+        String safeName = rs.getString("sf.name");
+        String cpmName = rs.getString("sf.cpm_name");
+        String lobName = rs.getString("ar.lob_name");
+        requestUrl = Config.selfServeBaseUrl + "/pas/safes"
+  						+ "?safeName=" + safeName
+                               			+ "&cpmName=" + cpmName
+                               			+ "&lobName=" + lobName
+                               			+ "&vaultName=" + vaultName;
         logger.log(Level.INFO, "Add safe: " + requestUrl);
         safeResponse = JavaREST.httpPost(requestUrl, "", "");
       }
@@ -107,7 +137,7 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String basePolicyResponse = "";
     try {
-      String querySql = "SELECT pr.name, pr.admin "
+      String querySql = "SELECT pr.name, pr.admin_user "
 		+ "FROM projects pr, accessrequests ar "
 		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
@@ -115,11 +145,11 @@ public class ProvisioningServlet extends HttpServlet {
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
-        String adminName = rs.getString("pr.admin");
+        String adminName = rs.getString("pr.admin_user");
 
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/basepolicy"
-   			                               + "?projectName=" + projectName
-   			                               + "&adminName=" + adminName;
+        requestUrl = Config.selfServeBaseUrl + "/conjur/basepolicy"
+   		                               + "?projectName=" + projectName
+   		                               + "&adminName=" + adminName;
 
         logger.log(Level.INFO, "Add base project policy: " + requestUrl);
         basePolicyResponse = JavaREST.httpPost(requestUrl, "", "");
@@ -138,22 +168,22 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String safePolicyResponse = "";
     try {
-      String querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
-		+ "FROM projects pr, accessrequests ar "
-		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
+      String querySql = "SELECT pr.name, sf.vault_name, sf.name, ar.lob_name "
+		+ "FROM projects pr, accessrequests ar, safes sf "
+		+ "WHERE ar.id = ? AND ar.project_id = pr.id AND ar.safe_id = sf.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
-        String vaultName = rs.getString("ar.vault_name");
+        String vaultName = rs.getString("sf.vault_name");
+        String safeName = rs.getString("sf.name");
         String lobName = rs.getString("ar.lob_name");
-        String safeName = rs.getString("ar.safe_name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/safepolicy"
-     			                               + "?projectName=" + projectName
-   			                               + "&vaultName=" + vaultName
-   			                               + "&lobName=" + lobName
-   			                               + "&safeName=" + safeName;
+        requestUrl = Config.selfServeBaseUrl + "/conjur/safepolicy"
+     		                               + "?projectName=" + projectName
+   		                               + "&vaultName=" + vaultName
+   		                               + "&lobName=" + lobName
+   		                               + "&safeName=" + safeName;
         logger.log(Level.INFO, "Add safe project policy: " + requestUrl);
         safePolicyResponse = JavaREST.httpPost(requestUrl, "", "");
       }
@@ -172,17 +202,17 @@ public class ProvisioningServlet extends HttpServlet {
     String identityPolicyResponse = "";
     try {
       String querySql =  "SELECT pr.name, appid.name "
-		+ "FROM projects pr, appidentities appid "
-		+ "WHERE appid.accreq_id = ? AND appid.project_id = pr.id";
+		+ "FROM projects pr, appidentities appid, accessrequests ar "
+		+ "WHERE ar.id = ? AND ar.project_id = pr.id AND ar.app_id = appid.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
         String idName = rs.getString("appid.name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/identitypolicy"
-   			                               + "?projectName=" + projectName
-   			                               + "&identityName=" + idName;
+        requestUrl = Config.selfServeBaseUrl + "/conjur/identitypolicy"
+   		                               + "?projectName=" + projectName
+   		                               + "&identityName=" + idName;
         logger.log(Level.INFO, "Add identity policy: " + requestUrl);
         identityPolicyResponse = identityPolicyResponse + JavaREST.httpPost(requestUrl, "", "");
       }
@@ -200,20 +230,20 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String accessPolicyResponse = "";
     try {
-      String querySql = "SELECT pr.name, appid.name, ar.safe_name "
-		+ "FROM projects pr, appidentities appid, accessrequests ar "
-		+ "WHERE ar.id = ? AND appid.accreq_id = ar.id AND ar.project_id = pr.id";
+      String querySql = "SELECT pr.name, appid.name, sf.name "
+		+ "FROM projects pr, appidentities appid, accessrequests ar, safes sf "
+		+ "WHERE ar.id = ? AND ar.app_id = appid.id AND ar.project_id = pr.id AND ar.safe_id = sf.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
         String idName = rs.getString("appid.name");
-        String safeName = rs.getString("ar.safe_name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/accesspolicy"
-   			                             + "?projectName=" + projectName
-   			                             + "&identityName=" + idName
-   			                             + "&groupRoleName=" + safeName + "/consumers";
+        String safeName = rs.getString("sf.name");
+        requestUrl = Config.selfServeBaseUrl + "/conjur/accesspolicy"
+   		                             + "?projectName=" + projectName
+   		                             + "&identityName=" + idName
+   		                             + "&groupRoleName=" + safeName + "/consumers";
         logger.log(Level.INFO, "Add access policy: " + requestUrl);
         accessPolicyResponse = accessPolicyResponse + JavaREST.httpPost(requestUrl, "", "");
       }
@@ -227,12 +257,26 @@ public class ProvisioningServlet extends HttpServlet {
   // +++++++++++++++++++++++++++++++++++++++++
   // Deletes safe consumers group for a project, removing access to accounts in the safe
   // This is not a true inverse of provisioning as it does not actually delete anything.
-  // It became evident that knowing exactly what to delete is a complex problem.
+  // During development, it became clear that knowing exactly what to delete is a complex problem.
   // Those functions are preserved should they prove useful in the future.
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response)
 	throws IOException, ServletException {
     String accReqId = request.getParameter("accReqId");
+
+    String pasToken = PASJava.logon(Config.pasAdminUser, Config.pasAdminPassword);
+    String conjurToken = ConjurJava.authnLogin(Config.conjurAdminUser, Config.conjurAdminPassword);
+    System.out.println("Conjur token: " + conjurToken);
+    if ( Objects.isNull(pasToken) || Objects.isNull(conjurToken) ) {
+      throw new ServletException("Error authenticating, pasToken: "+pasToken+", conjurToken: "+conjurToken);
+    }
+    try {
+      ProvisioningServlet.dbConn = DriverManager.getConnection(Config.appGovDbUrl,
+								Config.appGovDbUser,
+								Config.appGovDbPassword);
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
 
     String accessPolicyResponse = revokeAccessPolicy(accReqId);
 //    String identityPolicyResponse = deleteIdentityPolicy(accReqId);
@@ -241,14 +285,22 @@ public class ProvisioningServlet extends HttpServlet {
 //    String accountResponse = deleteAccounts(accReqId);
 //    String safeResponse = deleteSafes(accReqId);
 
+    // mark access request revoked
+
+    String requestUrl = Config.selfServeBaseUrl+ "/appgovdb?accReqId="+ accReqId
+						+ "&status=revoked";
+    String markedRevokedResponse = JavaREST.httpPut(requestUrl, "", "");
+
     response.getOutputStream().println("{"
-					+ accessPolicyResponse
-					+ "}");
+					+ accessPolicyResponse + ", "
+					+ markedRevokedResponse + "}");
+
 //					+ basePolicyResponse + ","
 //					+ safePolicyResponse + ","
 //					+ identityPolicyResponse + ","
 //					+ safeResponse + ","
 //					+ accountResponse + ","
+
   } //doDelete
 
   // ++++++++++++++++++++++++++++++++
@@ -258,20 +310,20 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String accessPolicyResponse = "";
     try {
-      String querySql = "SELECT pr.name, appid.name, ar.safe_name "
-		+ "FROM projects pr, appidentities appid, accessrequests ar "
-		+ "WHERE ar.id = ? AND appid.accreq_id = ar.id AND ar.project_id = pr.id";
+      String querySql = "SELECT pr.name, appid.name, sf.name "
+		+ "FROM projects pr, appidentities appid, accessrequests ar, safes sf "
+		+ "WHERE ar.id = ? AND ar.app_id = appid.id AND ar.project_id = pr.id AND ar.safe_id = sf.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
         String idName = rs.getString("appid.name");
-        String safeName = rs.getString("ar.safe_name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/accesspolicy"
-   			                             + "?projectName=" + projectName
-   			                             + "&identityName=" + idName
-   			                             + "&groupRoleName=" + safeName + "/consumers";
+        String safeName = rs.getString("sf.name");
+        requestUrl = Config.selfServeBaseUrl + "/conjur/accesspolicy"
+   		                             + "?projectName=" + projectName
+   		                             + "&identityName=" + idName
+   		                             + "&groupRoleName=" + safeName + "/consumers";
         logger.log(Level.INFO, "Delete access policy: " + requestUrl);
         accessPolicyResponse = accessPolicyResponse + Integer.toString(JavaREST.httpDelete(requestUrl, ""));
       }
@@ -290,17 +342,17 @@ public class ProvisioningServlet extends HttpServlet {
     String identityPolicyResponse = "";
     try {
       String querySql =  "SELECT pr.name, appid.name "
-		+ "FROM projects pr, appidentities appid "
-		+ "WHERE appid.accreq_id = ? AND appid.project_id = pr.id";
+		+ "FROM projects pr, appidentities appid, accessrequests ar "
+		+ "WHERE ar.id = ? AND ar.project_id = pr.id AND ar.app_id = appid.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
         String idName = rs.getString("appid.name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/identitypolicy"
-   			                               + "?projectName=" + projectName
-   			                               + "&identityName=" + idName;
+        requestUrl = Config.selfServeBaseUrl + "/conjur/identitypolicy"
+   		                               + "?projectName=" + projectName
+   		                               + "&identityName=" + idName;
         logger.log(Level.INFO, "Delete identity policy: " + requestUrl);
         identityPolicyResponse = identityPolicyResponse + Integer.toString(JavaREST.httpDelete(requestUrl, ""));
       }
@@ -318,22 +370,22 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String safePolicyResponse = "";
     try {
-      String querySql = "SELECT pr.name, ar.vault_name, ar.lob_name, ar.safe_name "
-		+ "FROM projects pr, accessrequests ar "
-		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
+      String querySql = "SELECT pr.name, sf.name, sf.vault_name, ar.lob_name "
+		+ " FROM accessrequests ar, projects pr, safes sf "
+		+ " WHERE ar.id = ? AND ar.project_id = pr.id AND ar.safe_id = sf.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
-        String vaultName = rs.getString("ar.vault_name");
+        String safeName = rs.getString("sf.name");
+        String vaultName = rs.getString("sf.vault_name");
         String lobName = rs.getString("ar.lob_name");
-        String safeName = rs.getString("ar.safe_name");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/safepolicy"
-     			                               + "?projectName=" + projectName
-   			                               + "&vaultName=" + vaultName
-   			                               + "&lobName=" + lobName
-   			                               + "&safeName=" + safeName;
+        requestUrl = Config.selfServeBaseUrl + "/conjur/safepolicy"
+     		                               + "?projectName=" + projectName
+   		                               + "&vaultName=" + vaultName
+   		                               + "&lobName=" + lobName
+   		                               + "&safeName=" + safeName;
         logger.log(Level.INFO, "Add safe project policy: " + requestUrl);
         safePolicyResponse = Integer.toString(JavaREST.httpDelete(requestUrl, ""));
       }
@@ -351,20 +403,19 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String basePolicyResponse = "";
     try {
-      String querySql = "SELECT pr.name, pr.admin "
-		+ "FROM projects pr, accessrequests ar "
-		+ "WHERE ar.id = ? AND ar.project_id = pr.id";
+      String querySql = "SELECT pr.name, pr.admin_user"
+		+ " FROM projects pr, accessrequests ar"
+		+ " WHERE ar.id = ? AND ar.project_id = pr.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) {
         String projectName = rs.getString("pr.name");
-        String adminName = rs.getString("pr.admin");
+        String adminName = rs.getString("pr.admin_user");
 
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/conjur/basepolicy"
-   			                               + "?projectName=" + projectName
-   			                               + "&adminName=" + adminName;
-
+        requestUrl = Config.selfServeBaseUrl + "/conjur/basepolicy"
+   		                               + "?projectName=" + projectName
+   		                               + "&adminName=" + adminName;
         logger.log(Level.INFO, "Add base project policy: " + requestUrl);
         basePolicyResponse = Integer.toString(JavaREST.httpDelete(requestUrl, ""));
       }
@@ -382,27 +433,27 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String accountResponse = "";
     try {
-      String querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
-		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
-		+ "WHERE pr.id = ca.project_id AND pr.id = ar.id AND ar.id = ?";
+      String querySql = "SELECT sf.name, ca.name, ca.platform_id, ca.address, ca.username,c a.secret_type"
+		+ " FROM accessrequests ar, projects pr, safes sf, cybraccounts ca"
+		+ " WHERE ar.id = ? AND ar.project_id = pr.id AND ar.safe_id = sf.id and ca.safe_id = sf.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while (rs.next()) {
-        String safeName = rs.getString("ar.safe_name");
+        String safeName = rs.getString("sf.name");
         String accountName = rs.getString("ca.name");
         String platformId = rs.getString("ca.platform_id");
         String accountAddress = rs.getString("ca.address");
         String accountUsername = rs.getString("ca.username");
         String accountSecretType = rs.getString("ca.secret_type");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/accounts"
-				+ "?safeName=" + safeName
-                                + "&accountName=" + accountName
-                                + "&platformId=" + platformId
-                                + "&address=" + accountAddress
-                                + "&userName=" + accountUsername
-                                + "&secretType=" + accountSecretType
-                                + "&secretValue=" + "RAndo498578x";
+        requestUrl = Config.selfServeBaseUrl + "/pas/accounts"
+						+ "?safeName=" + safeName
+						+ "&accountName=" + accountName
+                                		+ "&platformId=" + platformId
+                                		+ "&address=" + accountAddress
+                                		+ "&userName=" + accountUsername
+                                		+ "&secretType=" + accountSecretType
+                                		+ "&secretValue=" + "RAndo498578x";
         logger.log(Level.INFO, "Add account: " + requestUrl);
 	accountResponse = accountResponse + Integer.toString(JavaREST.httpDelete(requestUrl, "")) + ",";
 	prepStmt.close();
@@ -420,21 +471,22 @@ public class ProvisioningServlet extends HttpServlet {
     String requestUrl = "";
     String safeResponse = "";
     try {
-      String querySql = "SELECT safe_name, cpm_name, lob_name, vault_name FROM accessrequests WHERE id = ?";
+      String querySql = "SELECT sf.name, sf.cpm_name, sf.vault_name, ar.lob_name"
+			+ " FROM accessrequests ar, safes sf WHERE ar.id = ? AND ar.safe_id = sf.id";
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while(rs.next()) { 		// unique access request id guarantees only one row returned
-        String safeName = rs.getString("safe_name");
-        String cpmName = rs.getString("cpm_name");
-        String lobName = rs.getString("lob_name");
-        String vaultName = rs.getString("vault_name");
+        String safeName = rs.getString("sf.name");
+        String cpmName = rs.getString("sf.cpm_name");
+        String vaultName = rs.getString("sf.vault_name");
+        String lobName = rs.getString("ar.lob_name");
 
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/safes"
-  							+ "?safeName=" + safeName
-                                			+ "&cpmName=" + cpmName
-                                			+ "&lobName=" + lobName
-                                			+ "&vaultName=" + vaultName;
+        requestUrl = Config.selfServeBaseUrl + "/pas/safes"
+  						+ "?safeName=" + safeName
+                               			+ "&cpmName=" + cpmName
+                               			+ "&lobName=" + lobName
+                               			+ "&vaultName=" + vaultName;
         logger.log(Level.INFO, "Add safe: " + requestUrl);
         safeResponse = Integer.toString(JavaREST.httpDelete(requestUrl, ""));
       }
@@ -453,21 +505,21 @@ public class ProvisioningServlet extends HttpServlet {
     Connection conn = ProvisioningServlet.dbConn;
     String requestUrl = "";
     String accountResponse = "";
-    String querySql = "SELECT ar.safe_name, ca.name,ca.platform_id,ca.address,ca.username,ca.secret_type "
-		+ "FROM accessrequests ar, cybraccounts ca, projects pr "
-		+ "WHERE pr.id = ca.project_id AND pr.id = ar.id AND ar.id = ?";
+    String querySql = "SELECT sf.name, ca.name, ca.platform_id, ca.address, ca.username, ca.secret_type"
+		+ " FROM accessrequests ar, cybraccounts ca, projects pr, safes sf "
+		+ " WHERE ar.id = ? AND ar.project_id = pr.id AND ar.safe_id = sf.id AND ca.safe_id = sf.id";
     try {
       PreparedStatement prepStmt = conn.prepareStatement(querySql);
       prepStmt.setString(1, accReqId);
       ResultSet rs = prepStmt.executeQuery();
       while (rs.next()) {
-        String safeName = rs.getString("ar.safe_name");
+        String safeName = rs.getString("sf.name");
         String accountName = rs.getString("ca.name");
         String platformId = rs.getString("ca.platform_id");
         String accountAddress = rs.getString("ca.address");
         String accountUsername = rs.getString("ca.username");
         String accountSecretType = rs.getString("ca.secret_type");
-        requestUrl = ProvisioningServlet.CYBR_BASE_URL + "/pas/accounts"
+        requestUrl = Config.selfServeBaseUrl + "/pas/accounts"
 				+ "?safeName=" + safeName
                                 + "&accountName=" + accountName
                                 + "&platformId=" + platformId

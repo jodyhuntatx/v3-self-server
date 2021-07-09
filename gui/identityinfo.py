@@ -1,8 +1,5 @@
 from tkinter import *
 from tkinter import ttk
-import mysql.connector
-from mysql.connector import Error
-from dblayer import *
 
 class IdentityInfo:
 
@@ -25,19 +22,3 @@ class IdentityInfo:
     except ValueError:
       pass
 
-##############################
-# Writes variables to MySQL database
-  def write_to_db(self, projectDbId, accReqDbId):
-    # projectDbId - primary key of project record
-    # accReqDbId - primary key of access request
-    try:
-      cursor = DBLayer.dbConn.cursor(buffered=True)
-
-      query = "INSERT IGNORE INTO appidentities "		\
-                "(project_id, accreq_id, name, auth_method) "	\
-                "VALUES(%s,%s,%s,%s)"
-      args = (projectDbId, accReqDbId, self.identity.get(), 'auth_method')
-      cursor.execute(query, args)
-      DBLayer.dbConn.commit()
-    except Error as e:
-      print("MySQL Error:", e)

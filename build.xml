@@ -60,6 +60,7 @@
 	  <fileset dir="${build.dir}" includes="*Servlet.class"/>
 	</copy>
 
+	<copy file="cybrselfserve.properties" todir="${cybr-base}"/>
 	<copy file="web.xml" todir="${cybr-base}"/>
     </target>
 

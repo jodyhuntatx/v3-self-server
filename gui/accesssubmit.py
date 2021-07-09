@@ -60,9 +60,4 @@ class AccessRequest:
                 + "\"appIdName\":\"" + self.identityInfo.identity.get() + "\"," \
                 + "\"appAuthnMethod\":\"authn-k8s\"" \
                 + "}"
-    apiEndpoint = config.cybr["apiEndpoint"]
-    # authenticate to PAS for account table data extraction
-    pasSessionToken = requests.get(apiEndpoint + '/pas/login',
-                                auth=(config.cybr["pasAdminUsername"], config.cybr["pasAdminPassword"]))
-    r = requests.post(url = apiEndpoint + "/appgovdb", data = accReqParms)
-    print(r)
+    r = requests.post(url = config.cybr["apiEndpoint"]+"/appgovdb", data = accReqParms)

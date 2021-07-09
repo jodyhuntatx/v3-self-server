@@ -4,11 +4,11 @@
 
  MySQL best-practice to avoid dangling connections at server:
   - Create connection
-  - Create cursor
+  - Create cursor/prepared statement
   - Create Query string
   - Execute the query
   - Commit the query
-  - Close the cursor
+  - Close cursor/prepared statement
   - Close the connection
 */
 
@@ -20,6 +20,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.IOException;
 
 import com.google.gson.Gson;
@@ -33,22 +34,19 @@ public class AppGovDbServlet extends HttpServlet {
   /** Logger */
   private static final Logger logger = Logger.getLogger(AppGovDbServlet.class.getName());
 
-  private static String DB_URL = "";
-  private static String DB_USER = "";
-  private static String DB_PASSWORD = "";
   private static Connection dbConn = null;
 
   // +++++++++++++++++++++++++++++++++++++++++
-  // Initialize connection to database
-//DEBT - replace w/ calls to properties file
+  // Initialize values in case no one else has
   @Override
   public void init() {
-    String pasIp = "192.168.2.163";
-    PASJava.initConnection( pasIp );
-
-    AppGovDbServlet.DB_URL = "jdbc:mysql://conjurmaster2.northcentralus.cloudapp.azure.com/appgovdb?autoReconnect=true";
-    AppGovDbServlet.DB_USER = "root";
-    AppGovDbServlet.DB_PASSWORD = "Cyberark1";
+    try {
+      InputStream inputStream = getServletContext().getResourceAsStream(Config.propFileName);
+      Config.loadConfigValues(inputStream);
+    } catch (IOException e) {
+      System.out.println("Exception: " + e);
+    } 
+    PASJava.initConnection(Config.pasIpAddress);
   }
 
   // +++++++++++++++++++++++++++++++++++++++++
@@ -69,7 +67,7 @@ public class AppGovDbServlet extends HttpServlet {
 	jsonArrayName = "unprovisioned";
 	break;
       case "provisioned":
-	whereFilter = "accreq.provisioned";
+	whereFilter = "accreq.provisioned AND NOT accreq.revoked";
 	jsonArrayName = "provisioned";
 	break;
       case "revoked":
@@ -87,9 +85,9 @@ public class AppGovDbServlet extends HttpServlet {
 
     // connect to database
     try {
-      AppGovDbServlet.dbConn = DriverManager.getConnection(AppGovDbServlet.DB_URL,
-                                                         AppGovDbServlet.DB_USER,
-                                                         AppGovDbServlet.DB_PASSWORD);
+      AppGovDbServlet.dbConn = DriverManager.getConnection(Config.appGovDbUrl,
+							   Config.appGovDbUser,
+							   Config.appGovDbPassword);
       AppGovDbServlet.dbConn.setAutoCommit(false);
     } catch (SQLException e) {
       logger.log(Level.SEVERE, "Error connecting to appgovdb.");
@@ -124,6 +122,7 @@ public class AppGovDbServlet extends HttpServlet {
 	returnJson = returnJson + arRecord;
       }
       returnJson = "{\"" + jsonArrayName + "\": [" + returnJson + "]}";
+      conn.commit();
       prepStmt.close();
       logger.log(Level.INFO, "Access request query:"
                                 + "\n  query template: " + querySql
@@ -132,6 +131,14 @@ public class AppGovDbServlet extends HttpServlet {
       logger.log(Level.INFO, "Error querying access query:\n  query template: " + querySql);
       e.printStackTrace();
     }
+
+    // close the database connection
+    try {
+      AppGovDbServlet.dbConn.close();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+
     response.getOutputStream().println(returnJson);
 
   } // doGet
@@ -155,11 +162,12 @@ public class AppGovDbServlet extends HttpServlet {
     Gson gson = new Gson();
     AccessRequestParameters arParms = (AccessRequestParameters ) gson.fromJson(jb, AccessRequestParameters.class );
 
+
     // connect to database
     try {
-      AppGovDbServlet.dbConn = DriverManager.getConnection(AppGovDbServlet.DB_URL,
-                                                         AppGovDbServlet.DB_USER,
-                                                         AppGovDbServlet.DB_PASSWORD);
+      AppGovDbServlet.dbConn = DriverManager.getConnection(Config.appGovDbUrl,
+							   Config.appGovDbUser,
+							   Config.appGovDbPassword);
       AppGovDbServlet.dbConn.setAutoCommit(false);
     } catch (SQLException e) {
       e.printStackTrace();
@@ -194,6 +202,7 @@ public class AppGovDbServlet extends HttpServlet {
       else {
 	throw new SQLException("Unable to get project id after INSERT.");
       }
+      conn.commit();
       prepStmt.close();
       logger.log(Level.INFO, "write project record:"
 				+ "\n  query template: " + querySql
@@ -229,12 +238,14 @@ public class AppGovDbServlet extends HttpServlet {
       else {
 	throw new SQLException("Unable to get app id after INSERT.");
       }
+      conn.commit();
       prepStmt.close();
       logger.log(Level.INFO, "write identity record:"
                                 + "\n  query template: " + querySql
                                 + "\n  values: "
 				+ projectId + ", " + arParms.appIdName + ", " + arParms.appAuthnMethod
 				+ "\n  appId: " + appId);
+      conn.commit();
       prepStmt.close();
     } catch (SQLException e) {
       e.printStackTrace();
@@ -267,19 +278,21 @@ public class AppGovDbServlet extends HttpServlet {
                                 + "\n  values: "
 				+ arParms.pasSafeName + ", " + arParms.pasVaultName + ", " + arParms.pasCpmName
 				+ "\n  safeId: " + safeId);
+      conn.commit();
       prepStmt.close();
     } catch (SQLException e) {
       e.printStackTrace();
     }
 
     // Write accessrequest variables to accessrequests table and get DB-assigned accReqId for foreign keys
+    long accReqId = 0;
     try {
       LocalDateTime currentDateTime = java.time.LocalDateTime.now();
       String timeStamp = currentDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"));
       querySql = "INSERT IGNORE INTO accessrequests "
                 + "(project_id, app_id, safe_id, datetime, approved, environment, lob_name, requestor) "
                 + "VALUES(?,?,?,?,?,?,?,?)";
-      prepStmt = conn.prepareStatement(querySql);
+      prepStmt = conn.prepareStatement(querySql, Statement.RETURN_GENERATED_KEYS);
       prepStmt.setString(1, projectId);
       prepStmt.setString(2, appId);
       prepStmt.setString(3, safeId);
@@ -288,8 +301,18 @@ public class AppGovDbServlet extends HttpServlet {
       prepStmt.setString(6, arParms.environment);
       prepStmt.setString(7, arParms.pasLobName);
       prepStmt.setString(8, arParms.requestor);
-      prepStmt.executeUpdate();
-      prepStmt.close();
+      int affectedRows = prepStmt.executeUpdate();
+      if (affectedRows == 0) {
+        throw new SQLException("Creating user failed, no rows affected.");
+      }
+      try (ResultSet generatedKeys = prepStmt.getGeneratedKeys()) {
+        if (generatedKeys.next()) {
+          accReqId = generatedKeys.getLong(1);
+        }
+        else {
+          throw new SQLException("Insert of access request failed, no ID obtained.");
+        }
+      }
       conn.commit();
       prepStmt.close();
       logger.log(Level.INFO, "write access request record:"
@@ -307,15 +330,20 @@ public class AppGovDbServlet extends HttpServlet {
       e.printStackTrace();
     }
 
-    // Get accounts in safe and write account data to cybraccounts table
-    // This info is used to track app identity access to resources brokered through CyberArk accounts
-    // Currently only database accounts with non-null database properties are supported.
-
+/*
+    Code below retrieves accounts in safe and write account property data to cybraccounts table.
+    This is the only function that needs access to PAS, and therefore may not really
+    belong in this servlet.
+    This info is used to track app identity access to resources brokered through CyberArk accounts
+    Currently only database accounts with non-null database properties are supported.
+    This info might be useful for understanding the implication of granting the requested access.  JH
+*/
+    PASJava.logon(Config.pasAdminUser, Config.pasAdminPassword);
     String pasAccountJson = PASJava.getAccounts(arParms.pasSafeName);
     gson = new Gson();				// parse json output into PASAccountList
     PASAccountList accList = (PASAccountList) gson.fromJson(pasAccountJson, PASAccountList.class );
     try {
-      querySql = "INSERT INTO cybraccounts "
+      querySql = "INSERT IGNORE INTO cybraccounts "
 			+ "(safe_id, name, platform_id, secret_type, username, address, resource_type, resource_name)"
 			+ "VALUES "
 			+ "(?,?,?,?,?,?,?,?)";
@@ -358,6 +386,7 @@ public class AppGovDbServlet extends HttpServlet {
                                 + resourceType + ", "
                                 + resourceName);
       }
+      conn.commit();
       prepStmt.close();
     } catch (SQLException e) {
       e.printStackTrace();
@@ -370,7 +399,88 @@ public class AppGovDbServlet extends HttpServlet {
       e.printStackTrace();
     }
 
+    response.getOutputStream().println("{\"accessRequestId\": "+Long.toString(accReqId)+"}");
+
   } // doPost
+
+  // +++++++++++++++++++++++++++++++++++++++++
+  // Updates accessrequest records when they change state, e.g. are approved, provisioned, etc.
+  // Apparently this should really be "doPatch" but HttpServlet doesn't implement that.
+  @Override
+  public void doPut(HttpServletRequest request, HttpServletResponse response)
+	throws ServletException, IOException {
+    String accReqId = request.getParameter("accReqId");
+    String accReqStatus = request.getParameter("status");
+    String whereFilter = "accreq.id = " + accReqId;
+    String setFields = "";
+    String responseText = "";
+    switch(accReqStatus.toLowerCase()) {
+      case "approved":
+	whereFilter = whereFilter + " AND NOT accreq.approved AND NOT accreq.rejected";
+	setFields = "approved = 1";
+	responseText = "approved";
+	break;
+      case "provisioned":
+	whereFilter = whereFilter + " AND accreq.approved AND NOT accreq.rejected AND NOT accreq.provisioned";
+	setFields = "provisioned = 1";
+	responseText = "provisioned";
+	break;
+      case "revoked":
+	whereFilter = whereFilter + " AND accreq.provisioned";
+	setFields = "revoked = 1";
+	responseText = "revoked";
+	break;
+      case "rejected":
+	whereFilter = whereFilter;
+	setFields = "rejected = 1";
+	responseText = "rejected";
+	break;
+      default:
+        response.sendError(500, "{Unknown status for access request: " + accReqStatus
+				+ ".\nAccepted values: approve, provision, revoke, reject.}");
+	return;
+    }
+
+    // connect to database
+    try {
+      AppGovDbServlet.dbConn = DriverManager.getConnection(Config.appGovDbUrl,
+							   Config.appGovDbUser,
+							   Config.appGovDbPassword);
+      AppGovDbServlet.dbConn.setAutoCommit(false);
+    } catch (SQLException e) {
+      logger.log(Level.SEVERE, "Error connecting to appgovdb.");
+      e.printStackTrace();
+    }
+
+    Connection conn =  AppGovDbServlet.dbConn;
+    String querySql = "";
+    PreparedStatement prepStmt = null;
+    String returnJson = "";
+    try {
+      // Query for project/admin name to get project ID
+      querySql = "UPDATE accessrequests accreq SET " + setFields + " WHERE " + whereFilter;
+      prepStmt = conn.prepareStatement(querySql);
+      prepStmt.executeUpdate();
+      conn.commit();
+      prepStmt.close();
+      logger.log(Level.INFO, "Access request update:\n  query template: " + querySql);
+    } catch (SQLException e) {
+      logger.log(Level.INFO, "Error updating access request:\n  query template: " + querySql);
+      e.printStackTrace();
+    }
+
+    // close the database connection
+    try {
+      AppGovDbServlet.dbConn.close();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+
+    response.getOutputStream().println("{\"accReqId\": " + accReqId
+					+ ",\"status\": \"" + responseText
+					+"\"}");
+
+  } // doPut
 
 } // AppGovDbServlet
 

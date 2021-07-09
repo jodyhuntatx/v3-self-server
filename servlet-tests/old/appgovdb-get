@@ -7,11 +7,6 @@ export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
 
 main() {
-  # Login as admin to PAS
-  PASauthnCreds=$(echo "$PAS_ADMIN_NAME:$PAS_ADMIN_PASSWORD" | base64)
-  pasAuthnResponse=$($CURL -H "Authorization: Basic $PASauthnCreds" -H "Content-Type: application/json" "$BASE_URL/pas/login")
-  test "paslogin" "$pasAuthnResponse"
-
   appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=unapproved")
   test "unapproved" "$appDbResponse"
   appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=unprovisioned")
@@ -22,7 +17,6 @@ main() {
   test "revoked" "$appDbResponse"
   appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=rejected")
   test "rejected" "$appDbResponse"
-
 }
 
 ###################################

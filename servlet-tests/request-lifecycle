@@ -1,0 +1,87 @@
+#!/bin/bash
+
+source ./cybrtest.config
+
+export CURL="curl -s"
+export BASE_URL=http://localhost:8080/cybr
+export DEBUG=true
+
+# accessrequest json record
+jsonTest="{\"projectName\":\"$PROJECT_NAME\",\"requestor\":\"$PROJECT_REQUESTOR\", \"approved\": 0, \"environment\":\"$PROJECT_ENVIRONMENT\", \"pasVaultName\":\"$PAS_VAULT_NAME\", \"pasSafeName\":\"$PAS_SAFE_NAME\", \"pasCpmName\":\"$PAS_CPM_NAME\", \"pasLobName\":\"$PAS_LOB_NAME\", \"appIdName\":\"$PROJECT_IDENTITY\", \"appAuthnMethod\":\"authn-k8s\"}"
+
+main() {
+
+  echo "Submitting unapproved access request (appgovdb POST)..."
+  appDbResponse=$($CURL -X POST -H "Content-Type: application/json" --data "$jsonTest" "$BASE_URL/appgovdb")
+  test "submitRequest" "$appDbResponse"
+
+  accReqId=$(echo $appDbResponse | jq .accessRequestId)
+  echo "Access request id: $accReqId"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Get unapproved access requests (appgovdb GET)..."
+  appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=unapproved")
+  test "getUnapproved" "$appDbResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Approve access request $accReqId (appgovdb PUT)..."
+  appDbResponse=$($CURL -X PUT -H "Content-Type: application/json" "$BASE_URL/appgovdb?accReqId=$accReqId&status=approved")
+  test "approveRequest" "$appDbResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Get unprovisioned access requests (appgovdb GET)..."
+  appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=unprovisioned")
+  test "getUnprovisioned" "$appDbResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Provision approved access request $accReqId (provision POST)..."
+  provResponse=$($CURL -X POST "$BASE_URL/provision?accReqId=$accReqId")
+  test "provisionRequest" "$provResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Get provisioned access requests (appgovdb GET)..."
+  appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=provisioned")
+  test "getProvisioned" "$appDbResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Revoke provisioned access requests (provision DELETE)..."
+  provResponse=$($CURL -X DELETE "$BASE_URL/provision?accReqId=$accReqId")
+  test "revokeRequest" "$provResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+
+  echo 
+  echo "Get revoked access requests (appgovdb GET)..."
+  appDbResponse=$($CURL -H "Content-Type: application/json" "$BASE_URL/appgovdb?filter=revoked")
+  test "getRevoked" "$appDbResponse"
+
+}
+
+###################################
+test() {
+  if ! $DEBUG; then return; fi
+  local funcname=$1; shift
+  local value="$(echo $1 | tr -d '\r\n')"; shift
+
+  if [[ $value == null ]]; then
+    echo "$funcname returned null."
+  else
+    echo "$funcname returned:"
+    echo "$value"
+    echo
+  fi
+}
+
+main "$@"

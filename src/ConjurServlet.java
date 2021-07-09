@@ -20,6 +20,7 @@ import java.security.cert.X509Certificate;
 import java.security.NoSuchAlgorithmException;
 import java.security.KeyManagementException;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,8 +36,15 @@ public class ConjurServlet extends HttpServlet {
   // Initialize connection to Conjur
   @Override
   public void init() {
-    String conjurUrl = "https://conjur-master-mac";
-    String conjurAccount = "dev";
+    try {
+      InputStream inputStream = getServletContext().getResourceAsStream(Config.propFileName);
+      Config.loadConfigValues(inputStream);
+    } catch (IOException e) {
+      System.out.println("Exception: " + e);
+    }
+
+    String conjurUrl = Config.conjurUrl;
+    String conjurAccount = Config.conjurAccount;
     ConjurJava.initConnection( conjurUrl, conjurAccount);
 
     // turn off all cert validation - FOR DEMO ONLY

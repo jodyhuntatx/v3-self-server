@@ -1,0 +1,31 @@
+#!/bin/bash
+
+source ./cybrtest.config
+
+export ACC_REQ_ID=1;
+
+export CURL="curl -s"
+export BASE_URL=http://localhost:8080/cybr
+export DEBUG=true
+
+main() {
+  provResponse=$($CURL -X POST "$BASE_URL/provision?accReqId=$ACC_REQ_ID")
+  test "provision" "$provResponse"
+}
+
+###################################
+test() {
+  if ! $DEBUG; then return; fi
+  local funcname=$1; shift
+  local value="$(echo $1 | tr -d '\r\n')"; shift
+
+  if [[ $value == null ]]; then
+    echo "$funcname returned null."
+  else
+    echo "$funcname returned:"
+    echo "$value"
+    echo
+  fi
+}
+
+main "$@"

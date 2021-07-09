@@ -1,5 +1,5 @@
 #!/bin/bash
-source ../../config/conjur.config
+source ../mysql.config
 
 if [[ $# != 2 ]]; then
   echo "Usage: $0 <db-name> <username>"
