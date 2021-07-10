@@ -104,7 +104,6 @@ install-mysql() {
     sudo kill -9 $i
   done
   sudo service mysql start
-  sudo service mysql status
 }
 
 main "$@"

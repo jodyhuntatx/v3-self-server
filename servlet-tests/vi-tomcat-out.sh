@@ -1,3 +1,3 @@
 #!/bin/bash
 source ./cybrtest.config
-vi $TOMCAT_HOME/logs/catalina.out
+vi $CATALINA_HOME/logs/catalina.out
