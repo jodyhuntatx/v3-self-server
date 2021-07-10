@@ -11,18 +11,18 @@ import requests
 import config
 import json
 
-class AccessReview:
+class AccessRequests:
 
 ######################################
   def __init__(self, parent):
     mainframe = ttk.Frame(parent, width=1000, padding="12 12 12 12")
     mainframe.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
 
-    accreqLabel = ttk.Label(parent,text='Access Requests',font=('Helvetica bold',14),anchor='center')
+    accreqLabel = ttk.Label(parent,text='Access Requests',font=('Helvetica bold',32),anchor='center')
     accreqLabel.grid(column=0, row=1, sticky=(N, W, E, S), columnspan=3)
 
     # cols must correspond to fields returned from calls to AppGovDB.get()
-    self.cols=('Project','AppId','Safe','Environment','DateTime','RequestId')
+    self.cols=('Project','AppId','Safe','Environment','DateTimeSubmitted','RequestId')
     self.unapprTree = None
     self.unprovTree = None
     self.provTree = None
@@ -87,9 +87,9 @@ class AccessReview:
       self.unapprTree.destroy()
 
     self.unapprTree = ttk.Treeview(parent, height=5, columns=self.cols)
-    self.unapprScrollbar = Scrollbar(self.unapprTree, orient=VERTICAL, command=self.unapprTree.yview)
-    self.unapprTree.configure(yscrollcommand=self.unapprScrollbar.set)
-    self.unapprScrollbar.grid(row=1, column=7, sticky='ns')
+#    self.unapprScrollbar = Scrollbar(self.unapprTree, orient=VERTICAL, command=self.unapprTree.yview)
+#    self.unapprTree.configure(yscrollcommand=self.unapprScrollbar.set)
+#    self.unapprScrollbar.grid(row=1, column=7, sticky='ns')
 
     self.unapprTree['show'] = 'headings'
     for c in range(len(self.cols)):

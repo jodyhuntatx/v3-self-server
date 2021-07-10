@@ -1,5 +1,5 @@
 from loginwin import *
-from accessreview import *
+from accessrequests import *
 
 root = Tk()
 root.protocol("WM_DELETE_WINDOW", sys.exit)
@@ -12,11 +12,11 @@ s.configure('Cybr.TFrame', background='cornflower blue', borderwidth=5, relief='
 s.configure('Cybr.TLabel', background='cornflower blue', borderwidth=5, relief='raised')
 s.configure('Cybr.TButton', background='cornflower blue', borderwidth=5, relief='raised')
 
-logoImg = PhotoImage(file='Acme-corp.png')
+logoImg = PhotoImage(file='CORPORATE_LOGO.png')
 logoLabel = ttk.Label(root, image=logoImg, compound='center')
 logoLabel.image = logoImg
 logoLabel.grid(column=0, row=0, columnspan=5)
 
 LoginWin(root)
-AccessReview(root)
+AccessRequests(root)
 root.mainloop()

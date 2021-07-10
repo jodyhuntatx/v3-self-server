@@ -113,4 +113,13 @@
     <url-pattern>/appgovdb</url-pattern>
   </servlet-mapping>
 
+  <servlet>
+    <servlet-name>governance</servlet-name>
+    <servlet-class>GovernanceServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>governance</servlet-name>
+    <url-pattern>/governance</url-pattern>
+  </servlet-mapping>
+
 </web-app>

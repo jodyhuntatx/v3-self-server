@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 ./main-review.py &
+python3 ./main-requests.py &

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# This test script exercises the servlet endpoints called from 
-# the ProvisioningServlet. It simulates the provisioning flow 
-# of the ProvisioningServlet Post endpoint using values supplied 
-# as environment variables, rather than pulled from the appgovdb.
+# This test script exercises the servlet endpoints that are called
+# from the ProvisioningServlet. It simulates the provisioning flow 
+# of the ProvisioningServlet.doPost() function using values that are
+# supplied as environment variables, rather than pulled from the appgovdb.
 
 source ./cybrtest.config
 
@@ -24,21 +24,6 @@ main() {
   ConjurAuthnCreds=$(echo "$CONJUR_ADMIN_NAME:$CONJUR_ADMIN_PASSWORD" | base64)
   conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjur/login")
   test "conjurlogin" "$conjurAuthnResponse"
-
-  # Grant safe policy role to identity 
-  authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY&groupRoleName=$PROJECT_GROUP_ROLE")
-  test "accessgrant" "$authnResponse"
-
-exit
-  read -n 1 -s -r -p "Press any key to continue"
-  echo
-
-  # Grant safe policy role to identity 
-  authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY&groupRoleName=$PROJECT_GROUP_ROLE")
-  test "accessgrant" "$authnResponse"
-
-  read -n 1 -s -r -p "Press any key to continue"
-  echo
 
   # Add a safe w/ Conjur synch policy (safe is only created if it doesn't exist)
   safeAdd=$($CURL -X POST --url "$BASE_URL/pas/safes?safeName=$PAS_SAFE_NAME&cpmName=$PAS_CPM_NAME&lobName=$PAS_LOB_NAME&vaultName=$PAS_VAULT_NAME")
