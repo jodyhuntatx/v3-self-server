@@ -9,13 +9,11 @@ main() {
   install-tomcat
   install-mysql
   sudo apt install -y ant curl jq python3-tk
-  cd ..
-  ./ant.sh publish	# compile & copy servlet code to tomcat
+  pushd ..
+    ./ant.sh publish	# compile & copy servlet code to tomcat
+  popd
   pushd mysql/appgovdb
     ./1-create-db.sh
-  popd
-  pushd servlet-tests
-    ./gui-lifecycle
   popd
   echo
   echo "Installation complete."
