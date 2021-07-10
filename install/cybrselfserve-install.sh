@@ -4,7 +4,7 @@
 export TOMCAT_MINOR_VERSION=50
 
 main() {
-#  install-ssh
+  install-ssh
   install-java
   install-tomcat
   install-mysql

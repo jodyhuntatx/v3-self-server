@@ -4,7 +4,7 @@
     <property name="deps.dir"		value="dependencies"/>
     <property name="build.dir"		value="classes"/>
     <property name="main-class"		value="CybrDriver"/>
-    <property name="tomcat-base" value="/usr/local/Cellar/tomcat@9/9.0.46/libexec"/>
+    <property name="tomcat-base" value="/usr/local/tomcat9"/>
     <property name="cybr-base"	value="${tomcat-base}/webapps/cybr/WEB-INF"/>
 
     <path id="classpath">
