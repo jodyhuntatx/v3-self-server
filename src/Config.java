@@ -7,13 +7,25 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
+import java.security.NoSuchAlgorithmException;
+import java.security.KeyManagementException;
+
 /* DEBT - grep for DEBT to find known issues
 
 In looking around for where to put the config file, it seemed simplest
-to put it in the base directory for the servlets, versus classpath or other location.. It also seemed best to store these values in a class/structure.
+to put it in the base directory for the servlets, versus classpath or 
+other location.. It also seemed best to store these values in a class/structure.
 However that servlet directory context is only known to servlets, so they 
 have to open the file and pass the input stream to the loadConfigValues 
-function here. Which is kinda goofy.
+function here. Which is kinda goofy, and also means the Config struct may
+get initialized more than once.
 
 Merits revisiting, especially to secure the passwords. :) JH
 
@@ -81,4 +93,45 @@ public class Config {
     }
     return propValue;
   } 
+
+
+  // ==========================================
+  // void disableCertValidation()
+  //   from: https://nakov.com/blog/2009/07/16/disable-certificate-validation-in-java-ssl-connections/
+  //
+  public static void disableCertValidation() {
+    // Create a trust manager that does not validate certificate chains
+    TrustManager[] trustAllCerts = new TrustManager[] {new X509TrustManager() {
+      public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+        return null;
+      }
+      public void checkClientTrusted(X509Certificate[] certs, String authType) {
+      }
+      public void checkServerTrusted(X509Certificate[] certs, String authType) {
+      }
+    }
+    };
+ 
+    // Install the all-trusting trust manager
+    try {
+	        SSLContext sc = SSLContext.getInstance("SSL");
+        	sc.init(null, trustAllCerts, new java.security.SecureRandom());
+        	HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+    } catch(NoSuchAlgorithmException e) {
+		e.printStackTrace();
+    } catch(KeyManagementException e) {
+		e.printStackTrace();
+    }
+
+    // Create all-trusting host name verifier
+    HostnameVerifier allHostsValid = new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+    };
+ 
+    // Install the all-trusting host verifier
+    HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
+
+  } // disableCertValidation
 }

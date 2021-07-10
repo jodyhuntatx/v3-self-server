@@ -47,6 +47,7 @@ public class AppGovDbServlet extends HttpServlet {
       System.out.println("Exception: " + e);
     } 
     PASJava.initConnection(Config.pasIpAddress);
+    Config.disableCertValidation();
   }
 
   // +++++++++++++++++++++++++++++++++++++++++

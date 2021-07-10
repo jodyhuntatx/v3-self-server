@@ -50,6 +50,7 @@ public class ProvisioningServlet extends HttpServlet {
     }
     PASJava.initConnection(Config.pasIpAddress);
     ConjurJava.initConnection(Config.conjurUrl,Config.conjurAccount);
+    Config.disableCertValidation();
   }
 
   // +++++++++++++++++++++++++++++++++++++++++

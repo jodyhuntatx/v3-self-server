@@ -8,22 +8,24 @@ main() {
   install-java
   install-tomcat
   install-mysql
-  sudo apt install -y ant curl jq python3-tk
-  pushd ..
-    ./ant.sh publish	# compile & copy servlet code to tomcat
-  popd
-  pushd mysql/appgovdb
-    ./1-create-db.sh
-  popd
-  echo
+  sudo apt install -y git ant curl jq python3-tk
   echo "Installation complete."
+  echo "To configure & test:"
+  echo "  1) cd ~/v3-self-server"
+  echo "  2) edit cybrselfserve.properties with your PAS & Conjur config details"
+  echo "  3) run: ./ant.sh publish"
+  echo "  4) cd mysql/appgovdb"
+  echo "  5) run: ./1-create-db.sh"
+  echo "  6) run: ./2-db-load.sh db_load_appgovdb.sql"
+  echo "  7) run: ./3-db-query.sh dump_all.sql"
+  echo "  8) cd ../../servlet-tests"
+  echo "  9) run: gui-lifecycle"
 }
 
 #############################
 install-ssh() {
   sudo apt update -y
   sudo apt install -y openssh-server
-  sudo systemctl status ssh
   sudo ufw allow ssh
 }
 
@@ -73,7 +75,6 @@ install-mysql() {
   while [[ "$(ps -aux | grep mysql | grep -v grep)" != "" ]]; do
     sleep 3
   done
-  sudo service mysql status
   sudo mkdir -p /var/run/mysqld; sudo chown mysql:mysql /var/run/mysqld
   sudo mysqld_safe --skip-grant-tables &
   echo
