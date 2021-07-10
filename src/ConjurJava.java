@@ -66,7 +66,9 @@ public class ConjurJava {
 	String authHeader = "Basic " + base64Encode(_user + ":" + _password);
 	String requestUrl = conjurApplianceUrl
 				+ "/authn/" + conjurAccount + "/login";
+        logger.log(Level.INFO, "Conjur authnLogin requestUrl: " + requestUrl);
 	String authnApiKey = JavaREST.httpGet(requestUrl, authHeader);
+        logger.log(Level.INFO, "Conjur API key: " + authnApiKey);
 	return authnApiKey;
     }
 

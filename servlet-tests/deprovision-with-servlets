@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Deprovisioning is the inverse of provisioning, except that
+# current GUI deprovisioning flow in ProvisioningServlet.doDelete
+# is to only revoke the safe/consumers role from the host identity.
+
 source ./cybrtest.config
 
 export CURL="curl -s"
@@ -7,35 +11,35 @@ export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
 
 main() {
-  # Login as admin to PAS
-  PASauthnCreds=$(echo "$PAS_ADMIN_NAME:$PAS_ADMIN_PASSWORD" | base64)
-  pasAuthnResponse=$($CURL -H "Authorization: Basic $PASauthnCreds" -H "Content-Type: application/json" "$BASE_URL/pas/login")
-  test "paslogin" "$pasAuthnResponse"
-
   # Login as admin to Conjur
   ConjurAuthnCreds=$(echo "$CONJUR_ADMIN_NAME:$CONJUR_ADMIN_PASSWORD" | base64)
   conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjur/login")
   test "conjurlogin" "$conjurAuthnResponse"
 
   # Revoke role from Conjur identity
-  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$CONJUR_IDENTITY&groupRoleName=$CONJUR_GROUP_ROLE")
+  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY&groupRoleName=$PROJECT_GROUP_ROLE")
   test "revokeAccessgrant" "$authnResponse"
 
-  # Delete Conjur identity
-  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/identitypolicy?projectName=$PROJECT_NAME&identityName=$CONJUR_IDENTITY")
-  test "deleteConjuridentity" "$authnResponse"
+# It turns out that it's difficult to determine when to delete identities,
+# roles or safes. They may have other members, or may be needed later.
+# So we stop here. But the servlet endpoints called below are implemented,
+# should they be needed later.
 
 exit
 
-  # Delete Conjur safe policy
+  # Delete Conjur identity
+  authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/identitypolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY")
+  test "deleteConjuridentity" "$authnResponse"
+
+  # Delete Conjur safe policy for project
   authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/safepolicy?projectName=$PROJECT_NAME&vaultName=$PAS_VAULT_NAME&lobName=$PAS_LOB_NAME&safeName=$PAS_SAFE_NAME")
   test "deleteConjurSafePolicy" "$authnResponse"
 
-  # Delete Conjur base policy
+  # Delete Conjur base policy for project
   authnResponse=$($CURL --request DELETE --url "$BASE_URL/conjur/basepolicy?projectName=$PROJECT_NAME&adminName=$PROJECT_ADMIN")
   test "deleteConjurBasePolicy" "$authnResponse"
 
-  # Delete accounts from safe
+  # Delete accounts from safe named in access request
   accountList=$($CURL --url "$BASE_URL/pas/accounts?safeName=$PAS_SAFE_NAME")
   test "listAccounts" "$accountList"
 
@@ -51,6 +55,7 @@ exit
     let i=$i+1
   done
 
+  # Delete safe named in access request
   safeDelete=$($CURL -X DELETE --url "$BASE_URL/pas/safes?safeName=$PAS_SAFE_NAME&lobName=$PAS_LOB_NAME&vaultName=$PAS_VAULT_NAME")
   test "deleteSafe" "$safeDelete"
 }

@@ -1,10 +1,18 @@
 #!/bin/bash
 
+# This test script exercises the servlet endpoints called from 
+# the ProvisioningServlet. It simulates the provisioning flow 
+# of the ProvisioningServlet Post endpoint using values supplied 
+# as environment variables, rather than pulled from the appgovdb.
+
 source ./cybrtest.config
 
 export CURL="curl -s"
 export BASE_URL=http://localhost:8080/cybr
 export DEBUG=true
+
+# accessrequest json record (for reference, not used here)
+jsonTest="{\"projectName\":\"$PROJECT_NAME\",\"requestor\":\"$PROJECT_REQUESTOR\", \"approved\": 0, \"environment\":\"$PROJECT_ENVIRONMENT\", \"pasVaultName\":\"$PAS_VAULT_NAME\", \"pasSafeName\":\"$PAS_SAFE_NAME\", \"pasCpmName\":\"$PAS_CPM_NAME\", \"pasLobName\":\"$PAS_LOB_NAME\", \"appIdName\":\"$PROJECT_IDENTITY\", \"appAuthnMethod\":\"authn-k8s\"}"
 
 main() {
   # Login as admin to PAS
@@ -17,25 +25,48 @@ main() {
   conjurAuthnResponse=$($CURL -H "Authorization: Basic $ConjurAuthnCreds" -H "Content-Type: application/json" "$BASE_URL/conjur/login")
   test "conjurlogin" "$conjurAuthnResponse"
 
-  # Add a safe w/ Conjur synch policy
+  # Grant safe policy role to identity 
+  authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY&groupRoleName=$PROJECT_GROUP_ROLE")
+  test "accessgrant" "$authnResponse"
+
+exit
+  read -n 1 -s -r -p "Press any key to continue"
+  echo
+
+  # Grant safe policy role to identity 
+  authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY&groupRoleName=$PROJECT_GROUP_ROLE")
+  test "accessgrant" "$authnResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+  echo
+
+  # Add a safe w/ Conjur synch policy (safe is only created if it doesn't exist)
   safeAdd=$($CURL -X POST --url "$BASE_URL/pas/safes?safeName=$PAS_SAFE_NAME&cpmName=$PAS_CPM_NAME&lobName=$PAS_LOB_NAME&vaultName=$PAS_VAULT_NAME")
   test "safeAdd" "$safeAdd"
 
-  # Add an account to the safe & Conjur synchronizer policy
-  accountAdd=$($CURL -X POST --url "$BASE_URL/pas/accounts?safeName=$PAS_SAFE_NAME&accountName=$PAS_ACCOUNT_NAME&platformId=$PAS_PLATFORM_ID&address=$PAS_ACCOUNT_ADDRESS&userName=$PAS_ACCOUNT_USERNAME&secretType=$PAS_ACCOUNT_SECRET_TYPE&secretValue=$PAS_ACCOUNT_SECRET_VALUE");
-  test "accountAdd" "$accountAdd"
+  read -n 1 -s -r -p "Press any key to continue"
+  echo
 
   # Create Conjur base policy for project
   authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/basepolicy?projectName=$PROJECT_NAME&adminName=$PROJECT_ADMIN")
   test "basePolicy" "$authnResponse"
 
+  read -n 1 -s -r -p "Press any key to continue"
+  echo
+
   # Create Conjur safe consumer group under project's base policy
   authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/safepolicy?projectName=$PROJECT_NAME&vaultName=$PAS_VAULT_NAME&lobName=$PAS_LOB_NAME&safeName=$PAS_SAFE_NAME")
   test "safePolicy" "$authnResponse"
 
+  read -n 1 -s -r -p "Press any key to continue"
+  echo
+
   # Create Conjur identity under project's base policy
-  authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/identitypolicy?projectName=$PROJECT_NAME&identityName=$CONJUR_IDENTITY")
+  authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/identitypolicy?projectName=$PROJECT_NAME&identityName=$PROJECT_IDENTITY")
   test "identityPolicy" "$authnResponse"
+
+  read -n 1 -s -r -p "Press any key to continue"
+  echo
 
   # Grant safe policy role to identity 
   authnResponse=$($CURL --request POST --url "$BASE_URL/conjur/accesspolicy?projectName=$PROJECT_NAME&identityName=$CONJUR_IDENTITY&groupRoleName=$CONJUR_GROUP_ROLE")

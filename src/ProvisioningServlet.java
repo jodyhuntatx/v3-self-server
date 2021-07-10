@@ -34,9 +34,9 @@ import java.sql.*;
 
 // ###########################################
 public class ProvisioningServlet extends HttpServlet {
-    /** Logger */
-    private static final Logger logger = Logger.getLogger(ProvisioningServlet.class.getName());
-    private static Connection dbConn = null;
+  /** Logger */
+  private static final Logger logger = Logger.getLogger(ProvisioningServlet.class.getName());
+  private static Connection dbConn = null;
 
   // +++++++++++++++++++++++++++++++++++++++++
   // Initialize config object from properties file
@@ -53,15 +53,23 @@ public class ProvisioningServlet extends HttpServlet {
   }
 
   // +++++++++++++++++++++++++++++++++++++++++
-  // Provisions PAS safe, accounts, Conjur Sync policy, Conjur project policy, identities and access grants
+  // This servlet makes calls to other servlets to provision resources 
+  // implied by access requests, including:
+  //  - PAS safe, if it doesn't exist
+  //  - Conjur Synchronizer policy for safe
+  //  - Conjur project base policy
+  //  - Conjur safe consumer role
+  //  - Conjur host identity 
+  //  - Grant of safe consumer role to host.
+  // 
   @Override
   public void doPost(HttpServletRequest request, HttpServletResponse response)  
         throws ServletException, IOException {  
     String accReqId = request.getParameter("accReqId");
 
     String pasToken = PASJava.logon(Config.pasAdminUser, Config.pasAdminPassword);
-    String conjurToken = ConjurJava.authnLogin(Config.conjurAdminUser, Config.conjurAdminPassword);
-    System.out.println("Conjur token: " + conjurToken);
+    String conjurApiKey = ConjurJava.authnLogin(Config.conjurAdminUser, Config.conjurAdminPassword);
+    String conjurToken = ConjurJava.authenticate(Config.conjurAdminUser, conjurApiKey);
     if ( Objects.isNull(pasToken) || Objects.isNull(conjurToken) ) {
       throw new ServletException("Error authenticating, pasToken: "+pasToken+", conjurToken: "+conjurToken);
     }
@@ -85,13 +93,22 @@ public class ProvisioningServlet extends HttpServlet {
 					+ "&status=provisioned";
     String markedProvisionedResponse = JavaREST.httpPut(requestUrl, "", "");
 
+    logger.log(Level.INFO, "Add safe: "
+		+ "\n  safeResponse:" + safeResponse + ","
+		+ "\n  basePolicyResponse: " + basePolicyResponse
+		+ "\n  safePolicyResponse: " + safePolicyResponse
+		+ "\n  identityPolicyResponse: " + identityPolicyResponse 
+		+ "\n  accessPolicyResponse: " + accessPolicyResponse
+		+ "\n  markedProvisionedResponse: " + markedProvisionedResponse);
+
     response.getOutputStream().println("{"
-					+ safeResponse + ","
-					+ basePolicyResponse + ","
-					+ safePolicyResponse + ","
-					+ identityPolicyResponse + ","
-					+ accessPolicyResponse + ","
-					+ markedProvisionedResponse + "}");
+	+ "\"safeResponse\": " + safeResponse + ", \""
+	+ "\nbasePolicyResponse\": \"" + basePolicyResponse + ", \""
+	+ "\nsafePolicyResponse\": \"" + safePolicyResponse + ", \""
+	+ "\nidentityPolicyResponse\": \"" + identityPolicyResponse + ", \""
+	+ "\naccessPolicyResponse\": \"" + accessPolicyResponse + ", \""
+	+ "\nmarkedProvisionedResponse\": \"" + markedProvisionedResponse
+					+ "\"}");
 
   } // doPost
   
@@ -162,7 +179,7 @@ public class ProvisioningServlet extends HttpServlet {
   } // createBasePolicy
 
   // +++++++++++++++++++++++++++++++++++
-  // Create Conjur safe policy for project
+  // Create Conjur safe consumers policy for project
   private static String createSafePolicy(String accReqId) {
     Connection conn = ProvisioningServlet.dbConn;
     String requestUrl = "";
@@ -265,11 +282,12 @@ public class ProvisioningServlet extends HttpServlet {
     String accReqId = request.getParameter("accReqId");
 
     String pasToken = PASJava.logon(Config.pasAdminUser, Config.pasAdminPassword);
-    String conjurToken = ConjurJava.authnLogin(Config.conjurAdminUser, Config.conjurAdminPassword);
-    System.out.println("Conjur token: " + conjurToken);
+    String conjurApiKey = ConjurJava.authnLogin(Config.conjurAdminUser, Config.conjurAdminPassword);
+    String conjurToken = ConjurJava.authenticate(Config.conjurAdminUser, conjurApiKey);
     if ( Objects.isNull(pasToken) || Objects.isNull(conjurToken) ) {
       throw new ServletException("Error authenticating, pasToken: "+pasToken+", conjurToken: "+conjurToken);
     }
+
     try {
       ProvisioningServlet.dbConn = DriverManager.getConnection(Config.appGovDbUrl,
 								Config.appGovDbUser,
