@@ -1,17 +1,17 @@
 - !delete
-  record: !policy xxx
+  record: !policy {{ PROJECT_NAME }}
 
 - !delete
-  record: !host xxx-admin
+  record: !host {{ PROJECT_NAME }}-admin
 
 - !delete
-  record: !group xxx/yyy/consumers
+  record: !group {{ PROJECT_NAME }}/{{ SAFE_NAME }}/consumers
 
 - !delete
-  record: !policy DemoVault/CICD/yyy/delegation
+  record: !policy DemoVault/CICD/{{ SAFE_NAME }}/delegation
 
 - !delete
-  record: !group DemoVault/CICD/yyy-admins
+  record: !group DemoVault/CICD/{{ SAFE_NAME }}-admins
 
 - !delete
-  record: !policy DemoVault/CICD/yyy
+  record: !policy DemoVault/CICD/{{ SAFE_NAME }}

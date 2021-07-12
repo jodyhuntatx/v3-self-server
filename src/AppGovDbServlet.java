@@ -285,7 +285,7 @@ public class AppGovDbServlet extends HttpServlet {
       e.printStackTrace();
     }
 
-    // Write accessrequest variables to accessrequests table and get DB-assigned accReqId for foreign keys
+    // Write accessrequest variables to accessrequests table and get DB-assigned accReqId 
     long accReqId = 0;
     try {
       LocalDateTime currentDateTime = java.time.LocalDateTime.now();
@@ -329,6 +329,15 @@ public class AppGovDbServlet extends HttpServlet {
 				+ arParms.requestor);
     } catch (SQLException e) {
       e.printStackTrace();
+    }
+
+    // autoprovision requests for dev environment safes
+    // this should be a property of the resource, not the request
+    if (arParms.environment.equals("dev")) {
+        String requestUrl = Config.selfServeBaseUrl + "/provision"
+   		                               + "?accReqId=" + Long.toString(accReqId);
+        logger.log(Level.INFO, "Autoprovisioning for dev environment: " + requestUrl);
+        String provisioningResponse = JavaREST.httpPost(requestUrl, "", "");
     }
 
 /*

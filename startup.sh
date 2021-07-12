@@ -1,3 +1,3 @@
 #!/bin/bash
-sudo server mysql start
+sudo service mysql start
 /usr/local/tomcat9/bin/startup.sh

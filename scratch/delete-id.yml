@@ -1,7 +1,0 @@
-- !delete
-  record: !host user1/app-example-init
-- !delete
-  record: !host user1/app-example-k8ssecrets
-- !delete
-  record: !host user1/app-example-secretless
-

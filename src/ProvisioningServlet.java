@@ -273,9 +273,12 @@ public class ProvisioningServlet extends HttpServlet {
   } //createAccessPolicy
 
   // +++++++++++++++++++++++++++++++++++++++++
-  // Deletes safe consumers group for a project, removing access to accounts in the safe
-  // This is not a true inverse of provisioning as it does not actually delete anything.
-  // During development, it became clear that knowing exactly what to delete is a complex problem.
+  // Revokes access grant and deletes safe consumers group for a project, thereby 
+  // removing a project's access to accounts in the safe, and preventing the
+  // project admin from re-granting access.
+  // This is not a true inverse of provisioning as it does not delete identities, base policies,
+  // or safes.  During development, it became clear that knowing exactly what to 
+  // delete is a complex problem.
   // Those functions are preserved should they prove useful in the future.
   @Override
   public void doDelete(HttpServletRequest request, HttpServletResponse response)
@@ -298,8 +301,8 @@ public class ProvisioningServlet extends HttpServlet {
     }
 
     String accessPolicyResponse = revokeAccessPolicy(accReqId);
+    String safePolicyResponse = deleteSafePolicy(accReqId);
 //    String identityPolicyResponse = deleteIdentityPolicy(accReqId);
-//    String safePolicyResponse = deleteSafePolicy(accReqId);
 //    String basePolicyResponse = deleteBasePolicy(accReqId);
 //    String accountResponse = deleteAccounts(accReqId);
 //    String safeResponse = deleteSafes(accReqId);

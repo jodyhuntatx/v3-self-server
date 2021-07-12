@@ -1,4 +1,0 @@
-- !delete
-  record: !host foo-admin
-- !delete
-  record: !policy foo

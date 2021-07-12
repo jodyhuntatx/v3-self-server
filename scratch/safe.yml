@@ -1,3 +1,0 @@
-- !grant
-  role: !group projectfoo/CICD/projectfoo/delegation/consumers
-  member: !group foo/projectfoo/consumers

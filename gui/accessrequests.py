@@ -39,7 +39,7 @@ class AccessRequests:
     #################################
     # Approved/Not Provisioned access requests
     #################################
-    self.unprovFrame = ttk.LabelFrame(parent, text='Approved/Provisioning Incomplete', padding="3 3 12 12")
+    self.unprovFrame = ttk.LabelFrame(parent, text='Approved/Not Provisioned', padding="3 3 12 12")
     self.unprovFrame.grid(column=0, row=3, sticky=(N, W, E, S), columnspan=3)
     self.unprovFrame.columnconfigure(0, weight=1)
     self.unprovFrame.rowconfigure(0, weight=1)
@@ -222,7 +222,7 @@ class AccessRequests:
 
     # update rejected status of selected access request 
     apiEndpoint = config.cybr["apiEndpoint"] + '/appgovdb?accReqId=' + selectedReqId + '&status=rejected'
-    accStatusChangeResponse = requests.patch(apiEndpoint).content
+    accStatusChangeResponse = requests.put(apiEndpoint).content
 
     self.buildUnprovisionedTree(self.unprovFrame)	# rebuild unprovisioned tree w/o rejected access request
 
